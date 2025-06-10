@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crear una Cuenta</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900">
+
+    <div class="flex items-center justify-center min-h-screen px-4 py-12">
+        <div class="w-full max-w-md mx-auto">
+            <div id="auth-container" class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 md:p-10">
+                <!-- Contenido dinámico -->
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithRedirect, getRedirectResult, GoogleAuthProvider, OAuthProvider, updateProfile } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAKnJXo7QLcU7jxkhar_-WeLJNHtxXG9Bk",
+            authDomain: "kluppy-duelos.firebaseapp.com",
+            projectId: "kluppy-duelos",
+            storageBucket: "kluppy-duelos.appspot.com",
+            messagingSenderId: "221783859909",
+            appId: "1:221783859909:web:504d021f4e50a11c8486ac",
+            measurementId: "G-0839SL8VP6"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const authContainer = document.getElementById('auth-container');
+
+        // Estado mejorado para evitar race conditions
+        let authState = {
+            isEmailSignup: false,
+            isSocialLogin: false,
+            isProcessing: false,
+            user: null
+        };
+
+        function resetAuthState() {
+            authState.isEmailSignup = false;
+            authState.isSocialLogin = false;
+            authState.isProcessing = false;
+        }
+
+        const templates = {
+            loading: (message) => `
+                <div class="text-center p-8">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    <p class="text-lg text-gray-700 dark:text-gray-300">${message}</p>
+                </div>`,
+            form: `
+                <div class="text-center">
+                    <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Crear una cuenta</h1>
+                    <p id="subtitle" class="mt-2 text-sm text-gray-600 dark:text-gray-400">Introduce tus datos para empezar.</p>
+                </div>
+                <div id="message-container" class="hidden mt-4 p-3 rounded-lg text-center text-sm"></div>
+                <form id="registro-form" class="mt-8 space-y-6">
+                    <div><label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nombre</label><div class="mt-1"><input id="name" name="name" type="text" autocomplete="name" required class="w-full px-4 py-3 text-gray-800 bg-gray-100 border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" placeholder="Tu nombre completo"></div></div>
+                    <div><label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Correo electrónico</label><div class="mt-1"><input id="email" name="email" type="email" autocomplete="email" required class="w-full px-4 py-3 text-gray-800 bg-gray-100 border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" placeholder="tu@email.com"></div></div>
+                    <div><label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Contraseña</label><div class="mt-1"><input id="password" name="password" type="password" required minlength="6" autocomplete="new-password" class="w-full px-4 py-3 text-gray-800 bg-gray-100 border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" placeholder="Mínimo 6 caracteres"></div></div>
+                    <div><button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" id="submit-btn">Crear cuenta</button></div>
+                </form>
+                <div class="mt-6 flex items-center justify-center"><div class="w-full border-t border-gray-300 dark:border-gray-600"></div><span class="px-3 text-sm font-medium text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800">O</span><div class="w-full border-t border-gray-300 dark:border-gray-600"></div></div>
+                <div class="mt-6 grid grid-cols-1 gap-4">
+                    <button id="google-signin" type="button" class="w-full inline-flex justify-center items-center py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm bg-white dark:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"><svg class="w-5 h-5 mr-3" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l6.19,5.238C43.021,36.251,44,30.433,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg><span>Continuar con Google</span></button>
+                    <button id="microsoft-signin" type="button" class="w-full inline-flex justify-center items-center py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm bg-white dark:bg-gray-700 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600"><svg class="w-5 h-5 mr-3" viewBox="0 0 21 21" aria-hidden="true"><path fill="#F25022" d="M1 1h9v9H1z"/><path fill="#7FBA00" d="M11 1h9v9h-9z"/><path fill="#00A4EF" d="M1 11h9v9H1z"/><path fill="#FFB900" d="M11 11h9v9h-9z"/></svg><span>Continuar con Microsoft</span></button>
+                </div>
+                <div class="mt-8 text-center"><p class="text-sm text-gray-600 dark:text-gray-400">¿Ya tienes una cuenta? <a href="#" class="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300">Inicia sesión</a></p></div>`
+        };
+
+        function showMessage(text, isError = false) {
+            const msgEl = authContainer.querySelector('#message-container');
+            if(!msgEl) return;
+            msgEl.textContent = text;
+            msgEl.className = `mt-4 p-3 rounded-lg text-center text-sm ${isError ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`;
+            msgEl.classList.remove('hidden');
+        }
+
+        function hideMessage() {
+            const msgEl = authContainer.querySelector('#message-container');
+            if(msgEl) msgEl.classList.add('hidden');
+        }
+
+        function redirectToStripe(uid, email) {
+            authContainer.innerHTML = templates.loading('Redirigiendo a la página de pago...');
+            const baseUrl = 'https://buy.stripe.com/14k6rFdX2g4Y1Q4004';
+            const params = `?prefilled_email=${encodeURIComponent(email)}&client_reference_id=${uid}`;
+            setTimeout(() => {
+                window.location.href = baseUrl + params;
+            }, 2000);
+        }
+
+        // Verificar que el usuario se guardó correctamente
+        async function validateUserCreation(uid, email) {
+            try {
+                const userDoc = await getDoc(doc(db, 'users', uid));
+                if (!userDoc.exists()) {
+                    throw new Error('Usuario no encontrado en Firestore');
+                }
+
+                const userData = userDoc.data();
+                if (userData.email !== email) {
+                    throw new Error('Datos inconsistentes en Firestore');
+                }
+
+                console.log('✅ Usuario validado correctamente');
+                return true;
+            } catch (error) {
+                console.error('❌ Validación fallida:', error);
+                return false;
+            }
+        }
+
+        // Registro con email/contraseña CORREGIDO
+        async function handleSignup(e) {
+            e.preventDefault();
+            if (authState.isEmailSignup || authState.isProcessing) {
+                console.log('Registro ya en proceso, ignorando...');
+                return;
+            }
+            
+            authState.isEmailSignup = true;
+            authState.isProcessing = true;
+            
+            const submitBtn = document.getElementById('submit-btn');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Creando...';
+            }
+
+            showMessage('Creando tu cuenta...');
+
+            const name = document.getElementById('name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+
+            try {
+                console.log('🚀 Iniciando registro de usuario...');
+                
+                // 1) Crear usuario en Firebase Auth
+                const { user } = await createUserWithEmailAndPassword(auth, email, password);
+                console.log('✅ Usuario creado en Auth:', user.uid);
+
+                // 2) Actualizar perfil
+                await updateProfile(user, { displayName: name });
+                console.log('✅ Perfil actualizado');
+
+                // 3) Guardar en Firestore
+                const userDocRef = doc(db, 'users', user.uid);
+                await setDoc(userDocRef, {
+                    uid: user.uid,
+                    name: name,
+                    email: user.email,
+                    createdAt: serverTimestamp()
+                });
+                console.log('✅ Usuario guardado en Firestore');
+
+                // 4) Verificar que se guardó correctamente
+                const isValid = await validateUserCreation(user.uid, user.email);
+                if (!isValid) {
+                    throw new Error('El usuario no se guardó correctamente en Firestore');
+                }
+
+                showMessage('¡Cuenta creada exitosamente! Redirigiendo...');
+                
+                // 5) Redirigir después de confirmar guardado
+                setTimeout(() => {
+                    redirectToStripe(user.uid, user.email);
+                }, 1500);
+
+            } catch (error) {
+                console.error('❌ Error en registro:', error);
+                resetAuthState();
+                
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Crear cuenta';
+                }
+                
+                let errorMessage = 'Hubo un error. Por favor, inténtalo de nuevo.';
+                if (error.code === 'auth/email-already-in-use') {
+                    errorMessage = 'Este correo ya está registrado.';
+                } else if (error.code === 'auth/weak-password') {
+                    errorMessage = 'La contraseña debe tener al menos 6 caracteres.';
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMessage = 'El formato del correo no es válido.';
+                } else if (error.code === 'auth/network-request-failed') {
+                    errorMessage = 'Error de conexión. Verifica tu internet.';
+                }
+                
+                showMessage(errorMessage, true);
+            }
+        }
+        
+        // Manejo de login social CORREGIDO
+        async function handleSocialLogin(user) {
+            if (authState.isSocialLogin || authState.isProcessing) {
+                console.log('Login social ya en proceso, ignorando...');
+                return;
+            }
+            
+            authState.isSocialLogin = true;
+            authState.isProcessing = true;
+            
+            authContainer.innerHTML = templates.loading('Procesando tu cuenta...');
+            
+            try {
+                console.log('🚀 Procesando login social para:', user.uid);
+                
+                // Guardar/actualizar en Firestore
+                await setDoc(doc(db, 'users', user.uid), {
+                    uid: user.uid,
+                    name: user.displayName || '',
+                    email: user.email,
+                    lastLogin: serverTimestamp()
+                }, { merge: true });
+
+                console.log('✅ Usuario social guardado en Firestore');
+                
+                // Verificar guardado
+                const isValid = await validateUserCreation(user.uid, user.email);
+                if (!isValid) {
+                    throw new Error('Error al guardar datos del usuario social');
+                }
+
+                // Redirigir a Stripe
+                redirectToStripe(user.uid, user.email);
+                
+            } catch (error) {
+                console.error('❌ Error en login social:', error);
+                resetAuthState();
+                showForm();
+                showMessage('Error al procesar el login social. Inténtalo de nuevo.', true);
+            }
+        }
+
+        function showForm() {
+            authContainer.innerHTML = templates.form;
+            addEventListeners();
+        }
+
+        function addEventListeners() {
+            const form = authContainer.querySelector('#registro-form');
+            const btnGoogle = document.getElementById('google-signin');
+            const btnMicrosoft = document.getElementById('microsoft-signin');
+
+            if (form) {
+                form.addEventListener('submit', handleSignup);
+            }
+
+            if (btnGoogle) {
+                btnGoogle.addEventListener('click', () => {
+                    if (authState.isProcessing) return;
+                    const provider = new GoogleAuthProvider();
+                    signInWithRedirect(auth, provider);
+                });
+            }
+
+            if (btnMicrosoft) {
+                btnMicrosoft.addEventListener('click', () => {
+                    if (authState.isProcessing) return;
+                    const provider = new OAuthProvider('microsoft.com');
+                    provider.setCustomParameters({ prompt: 'select_account' });
+                    signInWithRedirect(auth, provider);
+                });
+            }
+        }
+        
+        // Manejo de estado de autenticación MEJORADO
+        onAuthStateChanged(auth, async (user) => {
+            console.log('🔄 Auth state changed. User:', user?.uid || 'none');
+            console.log('Estado actual:', authState);
+            
+            // Si estamos procesando un registro por email, ignorar cambios de estado
+            if (authState.isEmailSignup) {
+                console.log('📧 Registro por email en proceso, ignorando cambio de estado');
+                return;
+            }
+            
+            if (user && !authState.user) {
+                authState.user = user;
+                
+                // Si no es un login social en proceso, verificar redirect
+                if (!authState.isSocialLogin) {
+                    try {
+                        console.log('🔍 Verificando resultado de redirect...');
+                        const result = await getRedirectResult(auth);
+                        
+                        if (result && result.user) {
+                            console.log('✅ Redirect exitoso detectado');
+                            await handleSocialLogin(result.user);
+                        } else {
+                            console.log('ℹ️ Usuario existente detectado (no redirect)');
+                            // Podría ser una sesión existente, redirigir directamente
+                            redirectToStripe(user.uid, user.email);
+                        }
+                    } catch (error) {
+                        console.error('❌ Error procesando redirect:', error);
+                        resetAuthState();
+                        showForm();
+                        showMessage('Error al procesar el login. Inténtalo de nuevo.', true);
+                    }
+                }
+            } else if (!user && !authState.isProcessing) {
+                console.log('👤 No hay usuario, mostrando formulario');
+                authState.user = null;
+                showForm();
+            }
+        });
+
+        // Inicialización
+        console.log('🚀 Aplicación iniciada');
+        authContainer.innerHTML = templates.loading('Cargando...');
+
+    </script>
+</body>
+</html>
