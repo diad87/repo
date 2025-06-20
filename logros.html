@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mis Logros - Kluppy</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        @font-face {
+            font-family: 'Coolvetica';
+            src: url('fonts/coolvetica-rg-webfont.woff2') format('woff2'),
+                 url('fonts/coolvetica-rg-webfont.woff') format('woff');
+            font-weight: 400; font-style: normal;
+        }
+        @font-face {
+            font-family: 'Coolvetica Heavy';
+            src: url('fonts/coolvetica-heavy-webfont.woff2') format('woff2'),
+                 url('fonts/coolvetica-heavy-webfont.woff') format('woff');
+            font-weight: 900; font-style: normal;
+        }
+        body { font-family: 'Coolvetica', sans-serif; }
+        .font-coolvetica-heavy { font-family: 'Coolvetica Heavy', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+
+    <!-- Barra de Navegación -->
+    <header class="bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
+        <div class="container mx-auto flex justify-between items-center p-4">
+            <a href="home.html" class="text-4xl font-bold tracking-wider text-white">Kluppy</a>
+            <div class="relative">
+                <button id="user-menu-button" class="flex items-center space-x-2">
+                    <img id="user-avatar" class="w-8 h-8 rounded-full object-cover" src="https://placehold.co/40x40/7c3aed/ffffff?text=I" alt="Avatar de usuario">
+                </button>
+                <div id="user-menu-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg py-1">
+                    <div class="px-4 py-2 text-sm text-gray-400">
+                        <p class="font-semibold" id="user-display-name">Usuario</p>
+                        <p class="truncate" id="user-email">email@example.com</p>
+                    </div>
+                    <div class="border-t border-gray-700"></div>
+                    <a href="home.html" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700">🏠 Home</a>
+                    <a href="#" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700">⚙️ Configuración</a>
+                    <button id="logout-button" class="w-full text-left block px-4 py-2 text-sm text-red-400 hover:bg-gray-700">🚪 Cerrar sesión</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Contenido Principal -->
+    <main class="container mx-auto px-4 lg:px-8 py-8">
+        <div class="flex items-center justify-between mb-4">
+            <h1 class="text-4xl font-coolvetica-heavy">Tu Sala de Trofeos</h1>
+            <a href="home.html" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg flex items-center space-x-2 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>
+                <span>Volver</span>
+            </a>
+        </div>
+        <p class="text-lg text-gray-400 mb-8">Aquí puedes ver todos los hitos que has alcanzado y los que te quedan por conquistar.</p>
+
+        <!-- Barra de Progreso -->
+        <div class="mb-12">
+            <div class="flex justify-between mb-1">
+                <span class="text-base font-medium text-cyan-400">Progreso Total</span>
+                <span id="progress-text" class="text-sm font-medium text-cyan-400">4 de 15 Logros</span>
+            </div>
+            <div class="w-full bg-gray-700 rounded-full h-2.5">
+                <div id="progress-bar" class="bg-cyan-500 h-2.5 rounded-full" style="width: 25%"></div>
+            </div>
+        </div>
+        
+        <!-- Galería de Logros -->
+        <div id="achievements-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+            <!-- Los logros se insertarán aquí con JavaScript -->
+        </div>
+    </main>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyAKnJXo7QLcU7jxkhar_-WeLJNHtxXG9Bk",
+            authDomain: "kluppy-duelos.firebaseapp.com",
+            projectId: "kluppy-duelos",
+            storageBucket: "kluppy-duelos.appspot.com",
+            messagingSenderId: "221783859909",
+            appId: "1:221783859909:web:504d021f4e50a11c8486ac",
+            measurementId: "G-0839SL8VP6"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        // --- LÓGICA DEL MENÚ DE USUARIO ---
+        const userMenuButton = document.getElementById('user-menu-button');
+        const userMenuDropdown = document.getElementById('user-menu-dropdown');
+        userMenuButton.addEventListener('click', () => userMenuDropdown.classList.toggle('hidden'));
+        document.addEventListener('click', (e) => {
+            if (!userMenuButton.contains(e.target) && !userMenuDropdown.contains(e.target)) {
+                userMenuDropdown.classList.add('hidden');
+            }
+        });
+        document.getElementById('logout-button').addEventListener('click', () => signOut(auth));
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                document.getElementById('user-display-name').textContent = user.displayName || 'Usuario';
+                document.getElementById('user-email').textContent = user.email;
+                if (user.photoURL) document.getElementById('user-avatar').src = user.photoURL;
+            } else {
+                const currentUrl = window.location.href;
+                const newPath = currentUrl.substring(0, currentUrl.lastIndexOf('/') + 1) + 'index.html';
+                window.location.href = newPath;
+            }
+        });
+
+        // --- LÓGICA DE LA PÁGINA DE LOGROS ---
+        const allAchievements = [
+            { id: 'ppm_50', title: 'Mecanógrafo Junior', description: 'Alcanza 50 PPM.', unlocked: true, icon: '🚀' },
+            { id: 'ppm_80', title: 'Mecanógrafo Veloz', description: 'Supera las 80 PPM.', unlocked: true, icon: '⚡' },
+            { id: 'ppm_100', title: 'Velocidad Luz', description: 'Supera las 100 PPM.', unlocked: false, icon: '🌠' },
+            { id: 'accuracy_99', title: 'Precisión Quirúrgica', description: 'Consigue 99% de precisión.', unlocked: true, icon: '🎯' },
+            { id: 'streak_7', title: 'Constancia Semanal', description: 'Practica 7 días seguidos.', unlocked: false, icon: '🗓️' },
+            { id: 'muro_texto', title: 'El Muro de Texto', description: 'Completa un texto de 500 palabras.', unlocked: true, icon: '🧱' },
+            { id: 'sin_errores', title: 'Intocable', description: 'Completa una lección sin errores.', unlocked: false, icon: '🛡️' }
+        ];
+
+        const grid = document.getElementById('achievements-grid');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        
+        const unlockedCount = allAchievements.filter(a => a.unlocked).length;
+        const totalCount = allAchievements.length;
+        
+        progressText.textContent = `${unlockedCount} de ${totalCount} Logros`;
+        progressBar.style.width = `${(unlockedCount / totalCount) * 100}%`;
+
+        allAchievements.forEach(ach => {
+            const card = document.createElement('div');
+            card.className = `p-4 rounded-lg flex flex-col items-center justify-center text-center transition-all duration-300 ${
+                ach.unlocked 
+                ? 'bg-gray-800 border border-cyan-500/30' 
+                : 'bg-gray-800/50 border border-gray-700 opacity-60'
+            }`;
+
+            card.innerHTML = `
+                <div class="text-5xl mb-3">${ach.unlocked ? ach.icon : '🔒'}</div>
+                <h3 class="font-bold text-lg mb-1">${ach.title}</h3>
+                <p class="text-xs text-gray-400">${ach.description}</p>
+            `;
+            grid.appendChild(card);
+        });
+
+    </script>
+</body>
+</html>
