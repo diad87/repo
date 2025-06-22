@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ejercicio de Mecanografía - Kluppy v1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <style>
+        /* --- IMPORTACIONES Y FUENTES --- */
+        @import url('https://fonts.googleapis.com/css2?family=Fira+Code&display=swap');
+
+        @font-face {
+            font-family: 'Coolvetica';
+            src: url('fonts/coolvetica-rg-webfont.woff2') format('woff2'),
+                url('fonts/coolvetica-rg-webfont.woff') format('woff');
+            font-weight: 400; font-style: normal;
+        }
+        @font-face {
+            font-family: 'Coolvetica Heavy';
+            src: url('fonts/coolvetica-heavy-webfont.woff2') format('woff2'),
+                url('fonts/coolvetica-heavy-webfont.woff') format('woff');
+            font-weight: 900; font-style: normal;
+        }
+
+        /* --- PALETA DE COLORES (VARIABLES CSS) --- */
+        /* Tema Claro (por defecto) */
+        :root {
+            --color-bg: #f3f4f6;
+            --color-bg-rgb: 243, 244, 246;
+            --color-text: #111827;
+            --color-surface: #ffffff;
+            --color-surface-accent: #e5e7eb;
+            --color-border: #d1d5db;
+            --color-primary: #0891b2;
+            --color-success: #10b981;
+            --color-cursor-bg: rgba(17, 24, 39, 0.2);
+        }
+        /* Tema Oscuro (ajustado para parecerse a tu versión preferida) */
+        body.dark-theme {
+            --color-bg: #1f2937;
+            --color-bg-rgb: 31, 41, 55;
+            --color-text: #d1d5db; /* Color de texto de las teclas del original */
+            --color-surface: #111827; /* Fondo del teclado del original */
+            --color-surface-accent: #374151; /* Color de tecla del original */
+            --color-border: #374151;
+            --color-primary: #22d3ee;
+            --color-cursor-bg: rgba(255, 255, 255, 0.2);
+        }
+
+        /* --- ESTILOS GENERALES --- */
+        body { 
+            font-family: 'Coolvetica', sans-serif; 
+            background-color: var(--color-bg);
+            color: var(--color-text);
+        }
+        .font-coolvetica-heavy { font-family: 'Coolvetica Heavy', sans-serif; }
+        #test-mecanografia { max-width: 1000px; margin: auto; text-align: center; }
+        
+        #sample-container {
+            position: relative; overflow: hidden; white-space: nowrap; width: 100%;
+            height: 6rem; display: flex; align-items: center; margin-bottom: 2rem;
+            background-color: var(--color-surface);
+            border-radius: 0.75rem; border: 1px solid var(--color-border);
+        }
+        #texto-muestra {
+            position: relative; font-size: 2rem; user-select: none;
+            transition: transform 0.15s ease-out;
+            font-family: 'Fira Code', monospace;
+            color: var(--color-text); 
+        }
+        #progress-container, #progress-bar, #progress-text {
+            /* Estilos de la barra de progreso como los querías (fijos) */
+            position: relative;
+        }
+        #progress-container { width: 100%; height: 20px; background: var(--color-surface-accent); margin-bottom: 2.5rem; border-radius: 9999px; overflow: hidden; }
+        #progress-bar { width: 0%; height: 100%; background-color: #10b981; transition: width 0.2s; position: absolute; top:0; left:0; }
+        #progress-text { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #111827; font-weight: bold; }
+        
+        #entrada-usuario { position: absolute; width: 1px; height: 1px; opacity: 0; left: -9999px; }
+        
+        /* --- TECLADO (CON EL ESTILO ORIGINAL INTEGRADO) --- */
+        #keyboard-container { 
+            position: relative; display: inline-block; padding: 1rem;
+            background-color: var(--color-surface);
+            border-radius: 0.75rem; border: 1px solid var(--color-border); width: 100%;
+        }
+        .keyboard-row { margin: 6px 0; display: flex; justify-content: center; gap: 6px; }
+        .key {
+            height: 55px; flex-grow: 1; flex-basis: 0;
+            display: flex; align-items: center; justify-content: center;
+            border-bottom: 3px solid rgba(0,0,0,0.4); border-radius: 8px;
+            background-color: var(--color-surface-accent);
+            color: var(--color-text);
+            font-size: 1rem; user-select: none; position: relative;
+            transition: all 0.1s ease;
+        }
+        
+        /* Colores de aprendizaje (siempre fijos) */
+        .key[data-key-group="group-1"] { background-color: #9EF0B0; color: #1a202c;}
+        .key[data-key-group="group-2"] { background-color: #9CEB7A; color: #1a202c;}
+        .key[data-key-group="group-3"] { background-color: #FAED64; color: #1a202c;}
+        .key[data-key-group="group-4"] { background-color: #EDB656; color: #1a202c;}
+        .key[data-key-group="group-5"] { background-color: #A668C4; color: white; }
+        .key[data-key-group="group-6"] { background-color: #7EC2F5; color: #1a202c;}
+
+        /* --- SISTEMA DE RESALTADO (BASADO EN TU VERSIÓN PREFERIDA) --- */
+        /* Resaltado general para ambos temas (el del original) */
+        .key.highlight {
+            transform: translateY(-4px) scale(1.05);
+            box-shadow: 0 6px 20px rgba(255, 255, 255, 0.4);
+            border-color: #fff;
+        }
+        /* Efecto de atenuación SÓLO para el modo oscuro */
+        body.dark-theme #keyboard-container.foco-activo .key {
+            opacity: 0.4;
+            transition: opacity 0.3s ease-in-out;
+        }
+        body.dark-theme #keyboard-container.foco-activo .key.highlight {
+            opacity: 1;
+        }
+
+        /* --- ESTILOS DE COMPONENTES Y ANIMACIONES --- */
+        #hands-container { margin-top: 2rem; width: 100%; max-width: 450px; margin-left: auto; margin-right: auto; }
+        .hand-finger { fill: var(--color-surface-accent); transition: fill 0.2s ease-in-out; }
+        
+        @keyframes shake { 10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(2px); } 30%, 50%, 70% { transform: translateX(-4px); } 40%, 60% { transform: translateX(4px); } }
+        .shake { animation: shake 0.5s ease-in-out; }
+        
+        #results-modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(var(--color-bg-rgb), 0.8);
+            backdrop-filter: blur(5px);
+            display: none; align-items: center; justify-content: center; z-index: 1000;
+        }
+        .modal-content {
+            background-color: var(--color-surface);
+            border: 1px solid var(--color-border);
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            width: 100%;
+            max-width: 28rem;
+        }
+        .star { display: inline-block; opacity: 0; transform: scale(0.5); animation: starPop 0.8s forwards; }
+        @keyframes starPop { 0% { opacity: 0; transform: scale(0.5) rotate(0deg); } 50% { opacity: 1; transform: scale(1.3) rotate(15deg); } 100% { opacity: 1; transform: scale(1) rotate(0deg); } }
+
+        #live-stats-container {
+            /* Posicionamiento y Apariencia */
+            position: fixed; /* Fijo en la pantalla */
+            top: 8rem;
+            right: 1.5rem;
+            z-index: 1000;
+            /* Usamos las variables para que el color se adapte al tema */
+            background-color: rgba(var(--color-surface-rgb), 0.8);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--color-border);
+            border-radius: 0.5rem;
+            padding: 1rem;
+            width: 250px;
+            cursor: grab;
+
+            /* Lógica para Ocultar/Mostrar con animación */
+            visibility: hidden;
+            opacity: 0;
+            transform: translateX(100px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Clase para mostrar el panel */
+        #live-stats-container.is-open {
+            visibility: visible;
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        /* Estilos de los items internos, usando variables */
+        .stats-title {
+            font-size: 1rem;
+            font-weight: bold;
+            color: var(--color-text);
+            text-align: center;
+            padding-bottom: 0.5rem;
+        }
+        .stats-divider {
+            height: 1px;
+            background-color: var(--color-border);
+            margin-bottom: 0.5rem;
+            width: 100%;
+        }
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.25rem 0;
+            align-items: baseline;
+        }
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--color-text);
+            opacity: 0.7;
+        }
+        .stat-value {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: var(--color-text);
+        }
+        /* Colores específicos para ciertas estadísticas */
+        #live-corrections { color: #facc15; } /* Amarillo para correcciones */
+        #live-top-errors { color: #f87171; }  /* Rojo para errores */
+        
+        #music-toggle-button {
+            position: fixed; bottom: 1rem; right: 1rem; z-index: 1001;
+            background: rgba(var(--color-surface-rgb), 0.7);
+            backdrop-filter: blur(5px); border-radius: 50%; width: 50px; height: 50px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; cursor: pointer; transition: all 0.2s ease;
+        }
+        #music-toggle-button:hover { transform: scale(1.1); }
+        
+        #theme-toggle { background-color: #4b5563; position: relative; display: inline-flex; align-items: center; height: 1.5rem; border-radius: 9999px; width: 2.75rem;}
+        #theme-toggle-indicator { position: absolute; display: inline-block; width: 1rem; height: 1rem; transform: translateX(0); background-color: white; border-radius: 50%; transition: transform 0.2s;}
+        body.dark-theme #theme-toggle { background-color: var(--color-primary); }
+        body.dark-theme #theme-toggle-indicator { transform: translateX(20px); }
+    </style>
+</head>
+<body class="w-full">
+
+    <header class="bg-gray-800/80 backdrop-blur-sm sticky top-0 z-50">
+        <div class="container mx-auto flex justify-between items-center p-4">
+            <a href="home.html" class="text-4xl font-bold tracking-wider text-white">Kluppy</a>
+            <div class="relative">
+                <button id="user-menu-button" class="flex items-center space-x-2">
+                    <img id="user-avatar" class="w-8 h-8 rounded-full object-cover" src="https://placehold.co/40x40/7c3aed/ffffff?text=K" alt="Avatar de usuario">
+                </button>
+                <div id="user-menu-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-gray-900 rounded-md shadow-lg py-1">
+                    <div class="px-4 py-2 text-sm text-gray-400">
+                        <p class="font-semibold" id="user-display-name">Usuario</p>
+                        <p class="truncate" id="user-email">email@example.com</p>
+                    </div>
+                    <div class="border-t border-gray-700"></div>
+                    <a href="home.html" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700">🏠 Home</a>
+                    <a href="logros.html" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700">🏆 Mis Logros</a>
+                    <a href="#" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700">⚙️ Configuración</a>
+                    <div class="px-4 py-2 text-sm text-gray-300 flex justify-between items-center">
+                        <span>Tema Oscuro</span>
+                        <button id="theme-toggle" class="relative inline-flex items-center h-6 rounded-full w-11">
+                            <span class="absolute inline-block w-4 h-4 transform bg-white rounded-full transition-transform" id="theme-toggle-indicator"></span>
+                        </button>
+                    </div>
+                    <button id="logout-button" class="w-full text-left block px-4 py-2 text-sm text-red-400 hover:bg-gray-700">🚪 Cerrar sesión</button>
+                </div>
+            </div>
+        </header>
+
+    <main id="test-mecanografia" class="container mx-auto px-4 lg:px-8 py-12">
+        <div id="sample-container">
+            <p id="texto-muestra"></p>
+        </div>
+
+        <div id="progress-container">
+            <div id="progress-bar"></div>
+            <div id="progress-text">0%</div>
+        </div>
+
+        <input type="text" id="entrada-usuario" onpaste="return false;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+
+        <div id="keyboard-container">
+            <div id="keyboard"></div>
+        </div>
+        
+        <div id="hands-container">
+            <svg viewBox="0 0 550 200" xmlns="http://www.w3.org/2000/svg">
+                <g id="left-hand" transform="translate(40, 0)">
+                    <rect id="finger-pinky-left" class="hand-finger" x="0" y="40" width="40" height="120" rx="20"/>
+                    <rect id="finger-ring-left" class="hand-finger" x="45" y="20" width="40" height="140" rx="20"/>
+                    <rect id="finger-middle-left" class="hand-finger" x="90" y="0" width="40" height="160" rx="20"/>
+                    <rect id="finger-index-left" class="hand-finger" x="135" y="20" width="40" height="140" rx="20"/>
+                    <rect id="finger-thumb-left" class="hand-finger" x="175" y="100" width="60" height="40" rx="20" transform="rotate(-30, 205, 120)"/>
+                </g>
+                <g id="right-hand" transform="translate(245, 0)">
+                    <rect id="finger-thumb-right" class="hand-finger" x="15" y="100" width="60" height="40" rx="20" transform="rotate(30, 45, 120)"/>
+                    <rect id="finger-index-right" class="hand-finger" x="75" y="20" width="40" height="140" rx="20"/>
+                    <rect id="finger-middle-right" class="hand-finger" x="120" y="0" width="40" height="160" rx="20"/>
+                    <rect id="finger-ring-right" class="hand-finger" x="165" y="20" width="40" height="140" rx="20"/>
+                    <rect id="finger-pinky-right" class="hand-finger" x="210" y="40" width="40" height="120" rx="20"/>
+                </g>
+            </svg>
+        </div>
+
+        <div id="results-modal">
+            <div class="modal-content bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-md text-white border border-gray-700">
+                <h3 class="text-3xl font-bold mb-4 text-center">¡Lección Completada!</h3>
+                <div id="star-rating" class="text-5xl text-center mb-6"></div>
+                <div class="space-y-2 text-lg">
+                    <p>Tiempo: <span id="modal-tiempo" class="font-bold text-cyan-400"></span> s</p>
+                    <p>Pulsaciones por Minuto (PPM): <span id="modal-netPPM" class="font-bold text-cyan-400"></span></p>
+                    <p>Precisión: <span id="modal-precision" class="font-bold text-cyan-400"></span>%</p>
+                    <p>Errores: <span id="modal-errors" class="font-bold text-red-400"></span></p>
+                </div>
+                <div class="flex items-center space-x-4 mt-6">
+                    <button class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 rounded-lg" id="repeat-button">
+                        🔁 Repetir
+                    </button>
+                    <button class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 rounded-lg" id="close-modal">
+                        Siguiente Lección ➔
+                    </button>
+                </div>      
+            </div>
+        </div>
+    </main>
+    
+    <button id="toggle-stats-button" class="hidden">Toggle Stats</button>
+
+    <div id="live-stats-container">
+        <h3 class="stats-title">Estadísticas en Vivo</h3>
+        <div class="stats-divider"></div>
+        <div class="stat-item">
+            <span class="stat-label">Longitud:</span>
+            <span id="exercise-length" class="stat-value">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">PPM:</span>
+            <span id="live-ppm" class="stat-value">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Precisión:</span>
+            <div class="flex items-baseline">
+                <span id="live-accuracy" class="stat-value">100</span>
+                <span class="text-xs">%</span>
+            </div>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Correcciones:</span>
+            <span id="live-corrections" class="stat-value text-yellow-400">0</span>
+        </div>
+        <div class="stat-item">
+            <span class="stat-label">Top Errores:</span>
+            <span id="live-top-errors" class="stat-value text-red-400">-</span>
+        </div>
+    </div>
+
+    <button id="music-toggle-button" title="Activar/Desactivar Música" class="fixed bottom-4 right-4 z-50">
+        🔇
+    </button>
+
+    <script type="module">
+        // =================================================================
+        // SECCIÓN 1: INICIALIZACIÓN DE FIREBASE Y LÓGICA DE USUARIO
+        // =================================================================
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAKnJXo7QLcU7jxkhar_-WeLJNHtxXG9Bk",
+            authDomain: "kluppy-duelos.firebaseapp.com",
+            projectId: "kluppy-duelos",
+            storageBucket: "kluppy-duelos.appspot.com",
+            messagingSenderId: "221783859909",
+            appId: "1:221783859909:web:504d021f4e50a11c8486ac",
+            measurementId: "G-0839SL8VP6"
+        };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        const userMenuButton = document.getElementById('user-menu-button');
+        const userMenuDropdown = document.getElementById('user-menu-dropdown');
+        
+        userMenuButton.addEventListener('click', () => userMenuDropdown.classList.toggle('hidden'));
+        document.addEventListener('click', (e) => {
+            if (!userMenuButton.contains(e.target) && !userMenuDropdown.contains(e.target)) {
+                userMenuDropdown.classList.add('hidden');
+            }
+        });
+        document.getElementById('logout-button').addEventListener('click', () => signOut(auth));
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                document.getElementById('user-display-name').textContent = user.displayName || 'Usuario';
+                document.getElementById('user-email').textContent = user.email;
+                if (user.photoURL) document.getElementById('user-avatar').src = user.photoURL;
+            } else {
+                const currentUrl = window.location.href;
+                const newPath = currentUrl.substring(0, currentUrl.lastIndexOf('/') + 1) + 'index.html';
+                window.location.href = newPath;
+            }
+        });
+        
+        // =================================================================
+        // SECCIÓN 2: CONSTANTES DE LA APP, ESTADO Y CONFIGURACIÓN
+        // =================================================================
+
+        // --- Referencias al DOM ---
+        const textoMuestraElement = document.getElementById('texto-muestra');
+        const sampleContainer     = document.getElementById('sample-container');
+        const entradaUsuario      = document.getElementById('entrada-usuario');
+        const progressBar         = document.getElementById('progress-bar');
+        const progressText        = document.getElementById('progress-text');
+        const resultsModal        = document.getElementById('results-modal');
+        const closeModal          = document.getElementById('close-modal');
+        const starRating          = document.getElementById('star-rating');
+        const keyboardDiv         = document.getElementById('keyboard');
+        const modalTiempo         = document.getElementById('modal-tiempo');
+        const modalNetPPM         = document.getElementById('modal-netPPM');
+        const modalPrecision      = document.getElementById('modal-precision');
+        const modalErrors         = document.getElementById('modal-errors');
+        const repeatButton        = document.getElementById('repeat-button');
+        const liveStatsContainer  = document.getElementById('live-stats-container');
+        const exerciseLengthElement = document.getElementById('exercise-length');
+        const livePpmElement      = document.getElementById('live-ppm');
+        const liveAccuracyElement = document.getElementById('live-accuracy');
+        const liveCorrectionsElement = document.getElementById('live-corrections');
+        const liveTopErrorsElement   = document.getElementById('live-top-errors');
+
+        // --- Carga de Sonidos ---
+        const audioTecleo   = new Audio('sounds/tecleo.mp3');
+        const audioError    = new Audio('sounds/error.mp3');
+        const audioBorrado  = new Audio('sounds/borrado.mp3');
+        const audioEstrella = new Audio('sounds/estrella.mp3'); 
+        const backgroundMusic = new Audio('sounds/background-music.mp3');
+        backgroundMusic.loop = true; 
+        backgroundMusic.volume = 0.2;
+        audioTecleo.volume = 0.5;
+        audioError.volume = 0.4;
+        audioBorrado.volume = 0.3;
+        audioEstrella.volume = 0.6;
+
+        // --- Estado del Ejercicio ---
+        let sampleText         = [];
+        let tiempoInicio       = null;
+        let timerIniciado      = false;
+        let lastHandUsed       = 'right';
+        let liveStatsIntervalId = null;
+        let isWaitingForVowel  = false;
+        let correcciones = 0;
+        let mapaErrores = {};
+        let isMusicPlaying = false
+
+        // --- Configuración del Teclado ---
+        const keyLayout = [
+            [{key:"º",size:1,group:6,finger:"pinky-left"}, {key:"1",size:1,group:6,finger:"pinky-left"}, {key:"2",size:1,group:4,finger:"ring-left"}, {key:"3",size:1,group:3,finger:"middle-left"}, {key:"4",size:1,group:1,finger:"index-left"}, {key:"5",size:1,group:1,finger:"index-left"}, {key:"6",size:1,group:2,finger:"index-right"}, {key:"7",size:1,group:2,finger:"index-right"}, {key:"8",size:1,group:3,finger:"middle-right"}, {key:"9",size:1,group:4,finger:"ring-right"}, {key:"0",size:1,group:6,finger:"pinky-right"}, {key:"'",size:1,group:6,finger:"pinky-right"}, {key:"¡",size:1,group:6,finger:"pinky-right"}, {key:"Backspace",label:"←",size:2,group:6,finger:"pinky-right"}],
+            [{key:"Tab",size:1.5,group:6,finger:"pinky-left"}, {key:"Q",size:1,group:6,finger:"pinky-left"}, {key:"W",size:1,group:4,finger:"ring-left"}, {key:"E",size:1,group:3,finger:"middle-left"}, {key:"R",size:1,group:1,finger:"index-left"}, {key:"T",size:1,group:1,finger:"index-left"}, {key:"Y",size:1,group:2,finger:"index-right"}, {key:"U",size:1,group:2,finger:"index-right"}, {key:"I",size:1,group:3,finger:"middle-right"}, {key:"O",size:1,group:4,finger:"ring-right"}, {key:"P",size:1,group:6,finger:"pinky-right"}, {key:"`",size:1,group:6,finger:"pinky-right"}, {key:"+",size:1,group:6,finger:"pinky-right"}, {key:"\\",size:1.5,label:"",disabled:true,group:6}],
+            [{key:"CapsLock",label:"Bloq Mayús",size:1.75,group:6,finger:"pinky-left"}, {key:"A",size:1,group:6,finger:"pinky-left"}, {key:"S",size:1,group:4,finger:"ring-left"}, {key:"D",size:1,group:3,finger:"middle-left"}, {key:"F",size:1,group:1,finger:"index-left"}, {key:"G",size:1,group:1,finger:"index-left"}, {key:"H",size:1,group:2,finger:"index-right"}, {key:"J",size:1,group:2,finger:"index-right"}, {key:"K",size:1,group:3,finger:"middle-right"}, {key:"L",size:1,group:4,finger:"ring-right"}, {key:"Ñ",size:1,group:6,finger:"pinky-right"}, {key:"´",size:1,group:6,finger:"pinky-right"}, {key:"Ç",size:1,group:6,finger:"pinky-right"}, {key:"Enter",size:1.25,group:6,finger:"pinky-right"}],
+            [{key:"ShiftLeft",label:"Shift",size:1.25,group:6,finger:"pinky-left"}, {key:"<",size:1,group:6,finger:"pinky-left"}, {key:"Z",size:1,group:6,finger:"ring-left"}, {key:"X",size:1,group:4,finger:"middle-left"}, {key:"C",size:1,group:3,finger:"index-left"}, {key:"V",size:1,group:1,finger:"index-left"}, {key:"B",size:1,group:1,finger:"index-right"}, {key:"N",size:1,group:2,finger:"index-right"}, {key:"M",size:1,group:2,finger:"middle-right"}, {key:",",size:1,group:3,finger:"ring-right"}, {key:".",size:1,group:4,finger:"pinky-right"}, {key:"-",size:1,group:6,finger:"pinky-right"}, {key:"ShiftRight",label:"Shift",size:2.75,group:6,finger:"pinky-right"}],
+            [{key:"CtrlLeft",label:"Ctrl",size:1.25,group:6,finger:"pinky-left"}, {key:"Win",size:1.25,group:6}, {key:"AltLeft",label:"Alt",size:1.25,group:5,finger:"thumb-left"}, {key:"Space",label:"",size:6.25,group:5,finger:"thumb"}, {key:"AltRight",label:"AltGr",size:1.25,group:5,finger:"thumb-right"}, {key:"Menu",size:1.25,group:6}, {key:"CtrlRight",label:"Ctrl",size:1.25,group:6,finger:"pinky-right"}]
+        ];
+        
+        const diacriticMap = {
+            'á': { base: 'a', deadKey: '´' }, 'é': { base: 'e', deadKey: '´' }, 'í': { base: 'i', deadKey: '´' }, 'ó': { base: 'o', deadKey: '´' }, 'ú': { base: 'u', deadKey: '´' },
+            'Á': { base: 'A', deadKey: '´' }, 'É': { base: 'E', deadKey: '´' }, 'Í': { base: 'I', deadKey: '´' }, 'Ó': { base: 'O', deadKey: '´' }, 'Ú': { base: 'U', deadKey: '´' },
+            'ü': { base: 'u', deadKey: '¨' }, 'Ü': { base: 'U', deadKey: '¨' }, 'à': { base: 'a', deadKey: '`' }, 'è': { base: 'e', deadKey: '`' }, 'â': { base: 'a', deadKey: '^' }, 'ê': { base: 'e', deadKey: '^' },
+        };
+
+        // =================================================================
+        // SECCIÓN 3: FUNCIONES PRINCIPALES DE LA APLICACIÓN
+        // =================================================================
+
+
+        function getGroupForKey(char) {
+            const keyData = keyLayout.flat().find(k => (k.key || k).toUpperCase() === char.toUpperCase());
+            return keyData ? keyData.group : null;
+        }
+
+        function playSound(audio) {
+            audio.currentTime = 0;
+            audio.play().catch(e => {
+                if (e.name !== 'AbortError') { console.error("Error al reproducir sonido:", e); }
+            });
+        }
+
+        function toggleStatsPanel() {
+            liveStatsContainer.classList.toggle('is-open');
+        }
+
+        function makeDraggable(element) {
+            let isDragging = false;
+            let offsetX, offsetY;
+
+            // Cuando se HACE CLIC en el panel
+            element.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                
+                offsetX = e.clientX - element.offsetLeft;
+                offsetY = e.clientY - element.offsetTop;
+                
+                element.style.transition = 'none';
+                element.style.cursor = 'grabbing'; // <-- AÑADIDO: La mano se cierra
+            });
+
+            // Cuando se MUEVE el ratón
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                
+                element.style.left = `${e.clientX - offsetX}px`;
+                element.style.top = `${e.clientY - offsetY}px`;
+            });
+
+            // Cuando se SUELTA el clic
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+                element.style.transition = 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+                element.style.cursor = 'grab'; // <-- AÑADIDO: La mano vuelve a abrirse
+            });
+        }
+
+        function actualizarEstadisticasEnVivo() {
+            if (!timerIniciado) return;
+
+            // --- Cálculo de PPM y Precisión (sin cambios) ---
+            const segundosTranscurridos = (Date.now() - tiempoInicio) / 1000;
+            if (segundosTranscurridos === 0) return;
+            const typedText = entradaUsuario.value;
+            const minutosTranscurridos = segundosTranscurridos / 60;
+            let errores = 0;
+            for (let i = 0; i < typedText.length; i++) {
+                if (typedText[i] !== sampleText[i]) errores++;
+            }
+            const currentPPM = Math.max(0, Math.round((typedText.length - errores) / minutosTranscurridos));
+            const currentAccuracy = typedText.length > 0 ? ((typedText.length - errores) / typedText.length) * 100 : 100;
+            
+            // --- NUEVA LÓGICA PARA PROCESAR CORRECCIONES Y TOP ERRORES ---
+            const topErrores = Object.entries(mapaErrores)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3)
+                .map(item => item[0] === ' ' ? "'espacio'" : item[0])
+                .join(', ');
+
+            // --- Actualizamos TODO el panel ---
+            livePpmElement.textContent = currentPPM;
+            liveAccuracyElement.textContent = Math.max(0, currentAccuracy).toFixed(1);
+            liveCorrectionsElement.textContent = correcciones;
+            liveTopErrorsElement.textContent = topErrores || '-';
+        }
+
+        async function fetchTextFromWebhook() {
+            try {
+                const resp = await fetch("https://kluppy-n8n.divk72.easypanel.host/webhook/33b5b99a-06be-47fb-aed1-c27ca7778e7b", {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idioma: 'Español' })
+                });
+                if (!resp.ok) throw new Error(`Error en el webhook: ${resp.statusText}`);
+                const data = await resp.json();
+                return data.texto || 'El texto de ejemplo no pudo cargarse. Inténtalo de nuevo.';
+            } catch (error) {
+                console.error("Error al obtener texto:", error);
+                return 'Error de conexión. No se pudo cargar el texto.';
+            }
+        }
+
+        async function cargarNuevoTexto() {
+            const texto = await fetchTextFromWebhook();
+            sampleText = texto.split('');
+            exerciseLengthElement.textContent = sampleText.length;
+
+            textoMuestraElement.innerHTML = '';
+            textoMuestraElement.style.transform = 'translateX(0)'; // <<— reset
+            sampleText.forEach(char => {
+                const span = document.createElement('span');
+                span.textContent = char;
+                textoMuestraElement.appendChild(span);
+            });
+            updateHighlighting();
+            requestAnimationFrame(updateSampleTextPosition);
+        }
+
+        function createKeyboard() {
+            keyboardDiv.innerHTML = '';
+            keyLayout.forEach(row => {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'keyboard-row';
+                row.forEach(keyInfo => {
+                    const keyData = (typeof keyInfo === 'object') ? keyInfo : { key: keyInfo };
+                    const keyText = keyData.label !== undefined ? keyData.label : keyData.key;
+                    const keyId = keyData.key.toUpperCase();
+                    const keyDiv = document.createElement('div');
+                    keyDiv.className = 'key';
+                    keyDiv.textContent = keyText;
+                    keyDiv.style.flexGrow = keyData.size || 1;
+                    keyDiv.setAttribute('data-key', keyId);
+                    if (keyData.disabled) keyDiv.classList.add('disabled');
+                    if (keyData.group) keyDiv.setAttribute('data-key-group', `group-${keyData.group}`);
+                    if (keyData.finger) keyDiv.setAttribute('data-finger', keyData.finger);
+                    rowDiv.appendChild(keyDiv);
+                });
+                keyboardDiv.appendChild(rowDiv);
+            });
+        }
+        
+        function updateHighlighting() {
+            const typedValue = entradaUsuario.value;
+            const textSpans = textoMuestraElement.querySelectorAll("span");
+            
+            textSpans.forEach((span, index) => {
+                span.style.backgroundColor = "transparent";
+                span.style.color = "var(--color-text)";
+                if (index < typedValue.length) {
+                    if (typedValue[index] === span.textContent) {
+                        span.style.color = "#4ade80";
+                    } else {
+                        span.style.color = "#f87171";
+                        if (span.textContent === ' ') {
+                            span.style.backgroundColor = "rgba(239, 68, 68, 0.5)";
+                            span.style.borderRadius = "3px";
+                        }
+                    }
+                } else if (index === typedValue.length) {
+                    // Estilo para el carácter actual (cursor)
+                    span.style.backgroundColor = "var(--color-cursor-bg)"; // <-- AHORA USA LA VARIABLE
+                    span.style.borderRadius = "3px";
+                }
+            });
+            updateKeyboardAndHandHighlight();
+        }
+        
+        function getFingerForKey(char) {
+            const keyData = keyLayout.flat().find(k => (k.key || k).toUpperCase() === char.toUpperCase());
+            return keyData ? keyData.finger : null;
+        }
+        
+        function updateKeyboardAndHandHighlight() {
+        // Limpiamos resaltados de teclas anteriores
+        document.querySelectorAll(".key.highlight").forEach(key => key.classList.remove("highlight"));
+        
+        const currentIndex = entradaUsuario.value.length;
+
+        // Si el test ha terminado, nos aseguramos de quitar el foco y paramos.
+        if (currentIndex >= sampleText.length) {
+            document.getElementById('keyboard-container').classList.remove('foco-activo');
+            return;
+        }
+        
+        // --- LÍNEA CLAVE ---
+        // Si el test está en curso, nos aseguramos de que el modo foco ESTÉ ACTIVO.
+        document.getElementById('keyboard-container').classList.add('foco-activo');
+
+        // El resto de la lógica para encontrar y resaltar la tecla correcta
+        let nextChar = sampleText[currentIndex];
+        const isUppercase = nextChar === nextChar.toUpperCase() && nextChar !== nextChar.toLowerCase();
+        
+        const keySelector = nextChar === ' ' ? '.key[data-key="SPACE"]' : `.key[data-key="${nextChar.toUpperCase()}"]`;
+        const keyToHighlight = document.querySelector(keySelector);
+        
+        if (keyToHighlight) {
+            keyToHighlight.classList.add("highlight");
+
+            // Lógica para resaltar la tecla Shift si es una mayúscula
+            if (isUppercase) {
+                // (Aquí iría la lógica del Shift que teníamos, si decides reactivarla)
+            }
+        }
+    }
+        
+      function updateSampleTextPosition() {
+            const spans = textoMuestraElement.querySelectorAll("span");
+            if (spans.length === 0) return;
+
+            const currentSpan = spans[entradaUsuario.value.length] || spans[spans.length - 1];
+            if (!currentSpan) return;
+
+            // Usamos offsetLeft, que es estable y no depende de la posición del contenedor
+            const spanCenter = currentSpan.offsetLeft + (currentSpan.offsetWidth / 2);
+            
+            const newLeft = (sampleContainer.clientWidth / 2) - spanCenter;
+
+            textoMuestraElement.style.left = `${newLeft}px`;
+        }
+
+        function calcularResultados(segundos) {
+            if (liveStatsIntervalId) clearInterval(liveStatsIntervalId);
+            liveStatsIntervalId = null;
+
+            const typedText = entradaUsuario.value;
+            let errores = 0;
+            sampleText.forEach((char, i) => {
+                if (i < typedText.length && typedText[i] !== char) {
+                    errores++;
+                }
+            });
+
+            const minutos = segundos / 60;
+            const precision = sampleText.length > 0 ? (typedText.length - errores) / typedText.length * 100 : 0;
+            const netPPM = Math.max(0, Math.round((typedText.length - errores) / minutos));
+
+
+            modalTiempo.textContent = segundos.toFixed(1);
+            modalNetPPM.textContent = netPPM;
+            modalPrecision.textContent = Math.max(0, precision).toFixed(1);
+            modalErrors.textContent = errores;
+            
+            let estrellas = 0;
+            if (precision >= 98 && netPPM >= 250) estrellas = 3;
+            else if (precision >= 95 && netPPM >= 175) estrellas = 2;
+            else if (precision >= 90 && netPPM >= 100) estrellas = 1;
+
+            starRating.innerHTML = '';
+            if (estrellas > 0) {
+                for (let i = 0; i < estrellas; i++) {
+                    const delay = i * 400;
+                    const starSpan = document.createElement('span');
+                    starSpan.className = 'star';
+                    starSpan.textContent = '⭐';
+                    starSpan.style.animationDelay = `${delay / 1000}s`;
+                    starRating.appendChild(starSpan);
+                    
+                    setTimeout(() => {
+                        playSound(audioEstrella);
+                    }, delay + 500);
+                }
+            }
+            resultsModal.style.display = 'flex';
+        }
+
+        function reiniciarEjercicio() {
+            liveCorrectionsElement.textContent = '0';
+            liveTopErrorsElement.textContent = '-';
+            correcciones = 0;
+            mapaErrores = {};
+            isWaitingForVowel = false;
+            if (liveStatsIntervalId) clearInterval(liveStatsIntervalId);
+            liveStatsIntervalId = null;
+            livePpmElement.textContent = '0';
+            liveAccuracyElement.textContent = '100';
+            resultsModal.style.display = 'none';
+            entradaUsuario.value = '';
+            entradaUsuario.disabled = false;
+            timerIniciado = false;
+            tiempoInicio = null;
+            progressBar.style.width = '0%';
+            progressText.textContent = '0%';
+            document.getElementById('keyboard-container').classList.remove('foco-activo');
+            cargarNuevoTexto();
+            entradaUsuario.focus();
+        }
+
+        function repetirEjercicioActual() {
+            liveCorrectionsElement.textContent = '0';
+            liveTopErrorsElement.textContent = '-';
+            correcciones = 0;
+            mapaErrores = {};
+            isWaitingForVowel = false;
+            if (liveStatsIntervalId) clearInterval(liveStatsIntervalId);
+            liveStatsIntervalId = null;
+            livePpmElement.textContent = '0';
+            liveAccuracyElement.textContent = '100';
+            resultsModal.style.display = 'none';
+            entradaUsuario.value = '';
+            entradaUsuario.disabled = false;
+            timerIniciado = false;
+            tiempoInicio = null;
+            progressBar.style.width = '0%';
+            progressText.textContent = '0%';
+            document.getElementById('keyboard-container').classList.remove('foco-activo');
+            updateHighlighting();
+            updateSampleTextPosition();
+            entradaUsuario.focus();
+        }
+
+        // =================================================================
+        // SECCIÓN 4: EVENT LISTENERS (ESCUCHADORES DE EVENTOS)
+        // =================================================================
+        const musicToggleButton = document.getElementById('music-toggle-button');
+
+        musicToggleButton.addEventListener('click', () => {
+            isMusicPlaying = !isMusicPlaying; // Invertimos el estado
+
+            if (isMusicPlaying) {
+                backgroundMusic.play();
+                musicToggleButton.textContent = '🔊'; // Cambiamos el icono a "sonando"
+            } else {
+                backgroundMusic.pause();
+                musicToggleButton.textContent = '🔇'; // Cambiamos el icono a "silencio"
+            }
+        });
+
+        entradaUsuario.addEventListener('input', (event) => {
+            // Iniciar el temporizador
+            if (!timerIniciado && entradaUsuario.value.length > 0) {
+                timerIniciado = true;
+                tiempoInicio = Date.now();
+                if (liveStatsIntervalId) clearInterval(liveStatsIntervalId);
+                liveStatsIntervalId = setInterval(actualizarEstadisticasEnVivo, 1000);
+            }
+
+            const typedValue = entradaUsuario.value;
+            const lastCharIndex = typedValue.length - 1;
+
+            // Comprobamos si se ha añadido texto
+            if (event.inputType === 'insertText') {
+                // Si la letra es correcta...
+                if (typedValue[lastCharIndex] === sampleText[lastCharIndex]) {
+                    playSound(audioTecleo);
+                } else { // Si la letra es incorrecta...
+                    // --- TODA LA LÓGICA DE ERROR VA AQUÍ ---
+                    playSound(audioError);
+                    sampleContainer.classList.add('shake');
+                    setTimeout(() => {
+                        sampleContainer.classList.remove('shake');
+                    }, 500);
+
+                    // Contamos la tecla que debería haberse pulsado
+                    const charFallado = sampleText[lastCharIndex];
+                    if (charFallado) { 
+                        mapaErrores[charFallado] = (mapaErrores[charFallado] || 0) + 1;
+                    }
+                    // --- FIN DE LA LÓGICA DE ERROR ---
+                }
+            }
+
+            // El resto de la función para actualizar la UI no cambia
+            const lastChar = typedValue.slice(-1);
+            const finger = getFingerForKey(lastChar);
+            if (finger?.includes("left")) lastHandUsed = "left";
+            if (finger?.includes("right")) lastHandUsed = "right";
+            
+            const porcentaje = Math.min(typedValue.length / sampleText.length * 100, 100);
+            progressBar.style.width = `${porcentaje}%`;
+            progressText.textContent = `${Math.round(porcentaje)}%`;
+            
+            updateHighlighting();
+            updateSampleTextPosition();
+
+            // Comprobamos si el texto se ha completado (YA NO HAY BLOQUE ELSE AQUÍ)
+            if (typedValue.length === sampleText.length) {
+                const tiempoTranscurrido = (Date.now() - tiempoInicio) / 1000;
+                entradaUsuario.disabled = true;
+                timerIniciado = false;
+                calcularResultados(tiempoTranscurrido);
+            }
+        });
+
+        entradaUsuario.addEventListener("keydown", (event) => {
+            // Lógica para las tildes (sin cambios)
+            const nextChar = sampleText[entradaUsuario.value.length];
+            const diacriticInfo = diacriticMap[nextChar];
+            if (diacriticInfo && !isWaitingForVowel && event.key === 'Dead') { /*...*/ return; }
+            if (isWaitingForVowel) { isWaitingForVowel = false; }
+
+            // --- LÓGICA PARA CONTAR CORRECCIONES ---
+            if (event.key === 'Backspace') {
+                playSound(audioBorrado);
+                
+                const indexABorrar = entradaUsuario.value.length - 1;
+                if (indexABorrar >= 0) {
+                    const charBorrado = entradaUsuario.value[indexABorrar];
+                    const charCorrecto = sampleText[indexABorrar];
+                    // Si el carácter que borramos era un error, lo contamos como corrección
+                    if (charBorrado !== charCorrecto) {
+                        correcciones++;
+                    }
+                }
+            }
+            // --- FIN DE LA LÓGICA ---
+
+            // Lógica para CapsLock (sin cambios)
+            const capsLockKey = document.querySelector('.key[data-key="CAPSLOCK"]');
+            if (event.getModifierState && capsLockKey) {
+                capsLockKey.classList.toggle("active", event.getModifierState("CapsLock"));
+            }
+        });
+
+        closeModal.addEventListener('click', reiniciarEjercicio);
+        repeatButton.addEventListener('click', repetirEjercicioActual);
+
+        document.addEventListener('keydown', (event) => {
+            if (event.ctrlKey && event.altKey && event.key.toLowerCase() === 's') {
+                event.preventDefault();
+                toggleStatsPanel();
+            }
+        });
+
+        // =================================================================
+        // SECCIÓN 5: INICIALIZACIÓN DE LA APLICACIÓN
+        // =================================================================
+        
+        async function init() {
+            createKeyboard();
+            makeDraggable(liveStatsContainer);
+            await reiniciarEjercicio();
+            document.body.addEventListener('click', e => {
+                if (!e.target.closest('.modal-content') && !e.target.closest('#user-menu-button') && !e.target.closest('#live-stats-container')) {
+                    entradaUsuario.focus();
+                }
+            }, true);
+            window.addEventListener('resize', updateSampleTextPosition);
+        }
+        // --- LÓGICA DEL TEMA OSCURO/CLARO ---
+        const themeToggle = document.getElementById('theme-toggle');
+
+        // Función para aplicar el tema (añade o quita la clase .dark-theme del body)
+        const applyTheme = (theme) => {
+            if (theme === 'dark') {
+                document.body.classList.add('dark-theme');
+            } else {
+                document.body.classList.remove('dark-theme');
+            }
+        };
+
+        // Al cargar la página, comprobamos las preferencias
+        const initializeTheme = () => {
+            const savedTheme = localStorage.getItem('theme');
+            const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+            if (savedTheme) { // 1. Primero, miramos si el usuario ya eligió un tema
+                applyTheme(savedTheme);
+            } else if (systemPrefersDark) { // 2. Si no, respetamos la configuración del sistema
+                applyTheme('dark');
+            } else { // 3. Por defecto, aplicamos el tema claro
+                applyTheme('light');
+            }
+        };
+
+        // Evento para el botón del interruptor
+        themeToggle.addEventListener('click', () => {
+            const isDark = document.body.classList.contains('dark-theme');
+            const newTheme = isDark ? 'light' : 'dark';
+            applyTheme(newTheme);
+            // Guardamos la elección del usuario para que la recuerde en su próxima visita
+            localStorage.setItem('theme', newTheme);
+        });
+
+        // Inicializamos el tema al cargar la página
+        initializeTheme();
+
+
+        init();
+
+    </script>
+</body>
+</html>

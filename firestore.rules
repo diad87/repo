@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+  
+  match /users/{userId} {
+      allow read, create, update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false; 
+    }
+
+    // Colección perfilesUsuarios
+    // Permite a un usuario crear, leer y actualizar SU PROPIO perfil.
+    // El {userId} en el path debe ser el uid del usuario autenticado.
+    match /perfilesUsuarios/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId; // ESTA ES LA CLAVE PARA EL REGISTRO
+      allow update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if false; // Normalmente no se permite borrar perfiles así
+    }
+
+    // (Tus otras reglas para la colección 'duelos', etc.)
+    match /duelos/{dueloId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null; // Asumiendo que cualquier usuario autenticado puede crear un duelo
+      allow update: if request.auth != null; // Sé más específico aquí en producción
+      allow delete: if false;
+    }
+  }
+}
