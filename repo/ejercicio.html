@@ -106,18 +106,55 @@
 
         /* --- SISTEMA DE RESALTADO (BASADO EN TU VERSIÓN PREFERIDA) --- */
         /* Resaltado general para ambos temas (el del original) */
-        .key.highlight {
+        /* .key.highlight {
             transform: translateY(-4px) scale(1.05);
             box-shadow: 0 6px 20px rgba(255, 255, 255, 0.4);
             border-color: #fff;
-        }
+        } */
         /* Efecto de atenuación SÓLO para el modo oscuro */
-        body.dark-theme #keyboard-container.foco-activo .key {
+        /* body.dark-theme #keyboard-container.foco-activo .key {
             opacity: 0.4;
             transition: opacity 0.3s ease-in-out;
         }
         body.dark-theme #keyboard-container.foco-activo .key.highlight {
             opacity: 1;
+        } */
+         /* 1. Preparamos una "capa/velo" invisible. La usaremos SOLO en el modo oscuro. */
+        .key::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            /*background-color: rgba(0, 0, 0, 0.5); /* Velo oscuro para el modo oscuro */
+            opacity: 0; /* Por defecto, la capa es invisible */
+            transition: opacity 0.3s ease-in-out;
+            border-radius: inherit; /* Hereda el redondeo de la tecla */
+            pointer-events: none;
+        }
+
+        /* 2. Resaltado para MODO CLARO */
+        /* La tecla se oscurece para contrastar (efecto inversión) */
+        body:not(.dark-theme) .key.highlight {
+            background-color: rgba(0, 0, 0, 0.35);/*var(--color-text); /* Fondo oscuro */
+            /*color: var(--color-bg);             /* Texto claro */
+            border-color: var(--color-text);
+            transform: scale(1.1);
+        }
+
+        /* 3. Efecto de Foco para MODO OSCURO */
+        /* Cuando el foco está activo, mostramos el "velo" en las teclas inactivas */
+        body.dark-theme #keyboard-container.foco-activo .key::before {
+            background-color: rgba(0, 0, 0, 0.35);
+            opacity: 1;
+        }
+
+        /* Y en la tecla activa del modo oscuro, la hacemos resaltar y nos aseguramos de que no tenga el velo */
+        body.dark-theme #keyboard-container.foco-activo .key.highlight {
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.5); /* Le añadimos un brillo blanco */
+            opacity: 1; /* Nos aseguramos de que sea 100% opaca */
+        }
+        body.dark-theme #keyboard-container.foco-activo .key.highlight::before {
+            opacity: 0; /* Ocultamos el velo solo para esta tecla */
         }
 
         /* --- ESTILOS DE COMPONENTES Y ANIMACIONES --- */
@@ -217,10 +254,38 @@
         }
         #music-toggle-button:hover { transform: scale(1.1); }
         
-        #theme-toggle { background-color: #4b5563; position: relative; display: inline-flex; align-items: center; height: 1.5rem; border-radius: 9999px; width: 2.75rem;}
-        #theme-toggle-indicator { position: absolute; display: inline-block; width: 1rem; height: 1rem; transform: translateX(0); background-color: white; border-radius: 50%; transition: transform 0.2s;}
-        body.dark-theme #theme-toggle { background-color: var(--color-primary); }
-        body.dark-theme #theme-toggle-indicator { transform: translateX(20px); }
+        #theme-toggle {
+            background-color: #4b5563;
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            height: 1.75rem; /* 28px, un poco más alto para que quepa bien */
+            width: 3.25rem;  /* 52px, un poco más ancho */
+            border-radius: 9999px;
+            padding: 0.25rem; /* 4px de espacio interior */
+            transition: background-color 0.2s ease-in-out;
+        }
+
+        #theme-toggle-indicator {
+            position: absolute;
+            display: inline-block;
+            width: 1.25rem;  /* 20px */
+            height: 1.25rem; /* 20px */
+            transform: translateX(0);
+            background-color: white;
+            border-radius: 50%;
+            transition: transform 0.2s ease-in-out;
+        }
+
+        body.dark-theme #theme-toggle {
+            background-color: var(--color-primary);
+        }
+
+        /* Movemos la bolita la distancia correcta: Ancho total - Ancho bolita - (2 * padding) */
+        /* 52px - 20px - 8px = 24px = 1.5rem */
+        body.dark-theme #theme-toggle-indicator {
+            transform: translateX(1.5rem); 
+        }
     </style>
 </head>
 <body class="w-full">
@@ -349,6 +414,7 @@
         // =================================================================
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAKnJXo7QLcU7jxkhar_-WeLJNHtxXG9Bk",
@@ -361,6 +427,8 @@
         };
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
+        const db = getFirestore(app);
+
 
         const userMenuButton = document.getElementById('user-menu-button');
         const userMenuDropdown = document.getElementById('user-menu-dropdown');
@@ -434,6 +502,8 @@
         let correcciones = 0;
         let mapaErrores = {};
         let isMusicPlaying = false
+        let mapaErroresAnterior = {}; // Para binomios tipo: (letra_anterior, letra_fallada)
+let mapaErroresPosterior = {}; // Para binomios tipo: (letra_fallada, letra_siguiente)
 
         // --- Configuración del Teclado ---
         const keyLayout = [
@@ -617,37 +687,67 @@
         }
         
         function updateKeyboardAndHandHighlight() {
-        // Limpiamos resaltados de teclas anteriores
-        document.querySelectorAll(".key.highlight").forEach(key => key.classList.remove("highlight"));
-        
-        const currentIndex = entradaUsuario.value.length;
+            // 1. Reseteamos los resaltados anteriores
+            document.querySelectorAll(".key.highlight").forEach(key => key.classList.remove("highlight"));
+            document.querySelectorAll(".hand-finger").forEach(finger => finger.style.fill = "var(--color-surface-accent)");
 
-        // Si el test ha terminado, nos aseguramos de quitar el foco y paramos.
-        if (currentIndex >= sampleText.length) {
-            document.getElementById('keyboard-container').classList.remove('foco-activo');
-            return;
-        }
-        
-        // --- LÍNEA CLAVE ---
-        // Si el test está en curso, nos aseguramos de que el modo foco ESTÉ ACTIVO.
-        document.getElementById('keyboard-container').classList.add('foco-activo');
+            const currentIndex = entradaUsuario.value.length;
 
-        // El resto de la lógica para encontrar y resaltar la tecla correcta
-        let nextChar = sampleText[currentIndex];
-        const isUppercase = nextChar === nextChar.toUpperCase() && nextChar !== nextChar.toLowerCase();
-        
-        const keySelector = nextChar === ' ' ? '.key[data-key="SPACE"]' : `.key[data-key="${nextChar.toUpperCase()}"]`;
-        const keyToHighlight = document.querySelector(keySelector);
-        
-        if (keyToHighlight) {
-            keyToHighlight.classList.add("highlight");
+            // 2. Gestión del foco del teclado
+            if (currentIndex >= sampleText.length) {
+                document.getElementById('keyboard-container').classList.remove('foco-activo');
+                return;
+            }
+            document.getElementById('keyboard-container').classList.add('foco-activo');
 
-            // Lógica para resaltar la tecla Shift si es una mayúscula
-            if (isUppercase) {
-                // (Aquí iría la lógica del Shift que teníamos, si decides reactivarla)
+            // 3. Lógica para determinar qué tecla resaltar (sin cambios)
+            let nextChar = sampleText[currentIndex];
+            const diacriticInfo = diacriticMap[nextChar];
+            const isUppercase = nextChar === nextChar.toUpperCase() && nextChar !== nextChar.toLowerCase() && !diacriticInfo;
+            let keyToHighlightSelector;
+            if (isWaitingForVowel && diacriticInfo) {
+                keyToHighlightSelector = `.key[data-key="${diacriticInfo.base.toUpperCase()}"]`;
+            } else if (diacriticInfo) {
+                keyToHighlightSelector = `.key[data-key="${diacriticInfo.deadKey}"]`;
+            } else {
+                keyToHighlightSelector = `.key[data-key="${nextChar.toUpperCase() === ' ' ? 'SPACE' : nextChar.toUpperCase()}"]`;
+            }
+            const keyToHighlight = document.querySelector(keyToHighlightSelector);
+            if (keyToHighlight) {
+                keyToHighlight.classList.add("highlight");
+                if (isUppercase) {
+                    const keyFinger = getFingerForKey(nextChar);
+                    if (keyFinger?.includes('left')) {
+                        document.querySelector('.key[data-key="SHIFTRIGHT"]')?.classList.add('highlight');
+                    } else if (keyFinger?.includes('right')) {
+                        document.querySelector('.key[data-key="SHIFTLEFT"]')?.classList.add('highlight');
+                    }
+                }
+            }
+
+            // 4. --- LÓGICA MEJORADA PARA RESALTAR EL DEDO (INCLUYE CASO ESPACIO) ---
+            let finger = getFingerForKey(diacriticInfo ? diacriticInfo.base : nextChar);
+            if (nextChar === " ") finger = lastHandUsed === "left" ? "thumb-right" : "thumb-left";
+            
+            if (finger) {
+                const fingerElement = document.getElementById(`finger-${finger}`);
+                if (!fingerElement) return;
+
+                // Si la siguiente tecla es un espacio...
+                if (nextChar === ' ') {
+                    const spaceKey = document.querySelector('.key[data-key="SPACE"]');
+                    if (spaceKey) {
+                        fingerElement.style.fill = window.getComputedStyle(spaceKey).backgroundColor;
+                    }
+                } else { // Para el resto de las teclas...
+                    const keyGroup = getGroupForKey(diacriticInfo ? diacriticInfo.base : nextChar);
+                    const keyWithGroup = document.querySelector(`.key[data-key-group="group-${keyGroup}"]`);
+                    if (keyWithGroup) {
+                        fingerElement.style.fill = window.getComputedStyle(keyWithGroup).backgroundColor;
+                    }
+                }
             }
         }
-    }
         
       function updateSampleTextPosition() {
             const spans = textoMuestraElement.querySelectorAll("span");
@@ -671,16 +771,29 @@
             const typedText = entradaUsuario.value;
             let errores = 0;
             sampleText.forEach((char, i) => {
-                if (i < typedText.length && typedText[i] !== char) {
-                    errores++;
-                }
+                if (i < typedText.length && typedText[i] !== char) errores++;
             });
 
             const minutos = segundos / 60;
             const precision = sampleText.length > 0 ? (typedText.length - errores) / typedText.length * 100 : 0;
             const netPPM = Math.max(0, Math.round((typedText.length - errores) / minutos));
 
+            // Preparamos el objeto con TODOS los datos a guardar
+            const datosResultado = {
+                ppm: netPPM,
+                precision: parseFloat(precision.toFixed(1)),
+                errores: errores,
+                correcciones: correcciones,
+                duracion: parseFloat(segundos.toFixed(1)),
+                mapaErrores: Object.entries(mapaErrores),
+                mapaErroresAnterior: Object.entries(mapaErroresAnterior),
+                mapaErroresPosterior: Object.entries(mapaErroresPosterior)
+            };
+            
+            // Llamamos a la función para que guarde todo en la base de datos
+            guardarResultado(datosResultado);
 
+            // Actualizamos el modal (sin los errores detallados, que ya no están aquí)
             modalTiempo.textContent = segundos.toFixed(1);
             modalNetPPM.textContent = netPPM;
             modalPrecision.textContent = Math.max(0, precision).toFixed(1);
@@ -700,10 +813,7 @@
                     starSpan.textContent = '⭐';
                     starSpan.style.animationDelay = `${delay / 1000}s`;
                     starRating.appendChild(starSpan);
-                    
-                    setTimeout(() => {
-                        playSound(audioEstrella);
-                    }, delay + 500);
+                    setTimeout(() => { playSound(audioEstrella); }, delay + 500);
                 }
             }
             resultsModal.style.display = 'flex';
@@ -754,6 +864,31 @@
             entradaUsuario.focus();
         }
 
+        async function guardarResultado(datos) {
+            const usuario = auth.currentUser;
+            if (!usuario) {
+                console.log("No hay usuario conectado. No se guardan los resultados.");
+                return;
+            }
+            try {
+                await addDoc(collection(db, "resultados"), {
+                    userId: usuario.uid,
+                    timestamp: serverTimestamp(),
+                    ppm: datos.ppm,
+                    precision: datos.precision,
+                    errores: datos.errores,
+                    correcciones: datos.correcciones,
+                    duracion: datos.duracion,
+                    mapaErrores: Object.fromEntries(datos.mapaErrores),
+                    mapaErroresAnterior: Object.fromEntries(datos.mapaErroresAnterior),
+                    mapaErroresPosterior: Object.fromEntries(datos.mapaErroresPosterior)
+                });
+                console.log("Resultado detallado guardado en Firestore.");
+            } catch (e) {
+                console.error("Error al guardar el resultado: ", e);
+            }
+        }
+
         // =================================================================
         // SECCIÓN 4: EVENT LISTENERS (ESCUCHADORES DE EVENTOS)
         // =================================================================
@@ -772,53 +907,50 @@
         });
 
         entradaUsuario.addEventListener('input', (event) => {
-            // Iniciar el temporizador
             if (!timerIniciado && entradaUsuario.value.length > 0) {
                 timerIniciado = true;
                 tiempoInicio = Date.now();
                 if (liveStatsIntervalId) clearInterval(liveStatsIntervalId);
                 liveStatsIntervalId = setInterval(actualizarEstadisticasEnVivo, 1000);
             }
-
             const typedValue = entradaUsuario.value;
             const lastCharIndex = typedValue.length - 1;
 
-            // Comprobamos si se ha añadido texto
             if (event.inputType === 'insertText') {
-                // Si la letra es correcta...
                 if (typedValue[lastCharIndex] === sampleText[lastCharIndex]) {
                     playSound(audioTecleo);
-                } else { // Si la letra es incorrecta...
-                    // --- TODA LA LÓGICA DE ERROR VA AQUÍ ---
+                } else {
                     playSound(audioError);
                     sampleContainer.classList.add('shake');
-                    setTimeout(() => {
-                        sampleContainer.classList.remove('shake');
-                    }, 500);
+                    setTimeout(() => { sampleContainer.classList.remove('shake'); }, 500);
 
-                    // Contamos la tecla que debería haberse pulsado
                     const charFallado = sampleText[lastCharIndex];
                     if (charFallado) { 
                         mapaErrores[charFallado] = (mapaErrores[charFallado] || 0) + 1;
+
+                        const charAnterior = sampleText[lastCharIndex - 1];
+                        if (charAnterior) {
+                            const binomioAnterior = charAnterior + charFallado;
+                            mapaErroresAnterior[binomioAnterior] = (mapaErroresAnterior[binomioAnterior] || 0) + 1;
+                        }
+                        const charPosterior = sampleText[lastCharIndex + 1];
+                        if (charPosterior) {
+                            const binomioPosterior = charFallado + charPosterior;
+                            mapaErroresPosterior[binomioPosterior] = (mapaErroresPosterior[binomioPosterior] || 0) + 1;
+                        }
                     }
-                    // --- FIN DE LA LÓGICA DE ERROR ---
                 }
             }
-
-            // El resto de la función para actualizar la UI no cambia
             const lastChar = typedValue.slice(-1);
             const finger = getFingerForKey(lastChar);
             if (finger?.includes("left")) lastHandUsed = "left";
             if (finger?.includes("right")) lastHandUsed = "right";
-            
             const porcentaje = Math.min(typedValue.length / sampleText.length * 100, 100);
             progressBar.style.width = `${porcentaje}%`;
             progressText.textContent = `${Math.round(porcentaje)}%`;
-            
             updateHighlighting();
             updateSampleTextPosition();
 
-            // Comprobamos si el texto se ha completado (YA NO HAY BLOQUE ELSE AQUÍ)
             if (typedValue.length === sampleText.length) {
                 const tiempoTranscurrido = (Date.now() - tiempoInicio) / 1000;
                 entradaUsuario.disabled = true;
