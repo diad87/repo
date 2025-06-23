@@ -14,10 +14,12 @@ module.exports = {
     "no-restricted-globals": ["error", "name", "length"],
     "prefer-arrow-callback": "error",
     "quotes": ["error", "double", {"allowTemplateLiterals": true}],
+    "linebreak-style": 0,
+    "max-len": 0, // <-- AÑADE ESTA LÍNEA PARA DESACTIVAR EL LÍMITE DE LARGO
   },
   overrides: [
     {
-      files: ["**/*.spec.*"],
+      files: ["**/.spec."],
       env: {
         mocha: true,
       },

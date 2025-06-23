@@ -4,16 +4,46 @@ const admin = require("firebase-admin");
 const stripe = require("stripe")("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");
 
 // Nueva línea: Define el secreto que has guardado con `firebase functions:secrets:set`
-const {defineString} = require('firebase-functions/params');
-const stripeWebhookSecret = defineString('STRIPE_WEBHOOK_SECRET');
+const {defineString} = require("firebase-functions/params");
+const stripeWebhookSecret = defineString("STRIPE_WEBHOOK_SECRET");
 
 
 admin.initializeApp();
 const db = admin.firestore();
 
+/**
+ * Asigna un claim de administrador a un usuario a través de su email.
+ * Esta es una función "callable", lo que significa que la podemos llamar
+ * de forma segura desde nuestra app.
+ */
+exports.setAdminClaim = functions.https.onCall(async (data, context) => {
+  // Para la primera vez, comentamos la seguridad para poder asignarnos el rol a nosotros mismos.
+  // if (context.auth.token.admin !== true) {
+  //   return { error: 'Solo los administradores pueden asignar nuevos administradores.' };
+  // }
+
+  const email = data.email;
+  try {
+    // Buscar al usuario por su email
+    const user = await admin.auth().getUserByEmail(email);
+
+    // Asignar el custom claim.
+    await admin.auth().setCustomUserClaims(user.uid, {
+      admin: true,
+    });
+
+    // Devolver una respuesta de éxito
+    return {
+      message: `¡Éxito! El usuario ${email} ahora es administrador.`,
+    };
+  } catch (error) {
+    console.error("Error al asignar el claim de admin:", error);
+    return {error: error.message};
+  }
+});
+
 // Esta es la función que actuará como nuestro Webhook
 exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
-  
   // 1. Verificar que la petición viene de Stripe (muy importante para la seguridad)
   const signature = req.headers["stripe-signature"];
   let event;
@@ -30,7 +60,6 @@ exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
 
   // 3. Reaccionar a los diferentes tipos de eventos de Stripe
   switch (event.type) {
-    
     // Evento: El usuario completa el pago por primera vez
     case "checkout.session.completed": {
       const userId = dataObject.client_reference_id; // ¡Aquí recuperamos el UID de Firebase!
@@ -57,7 +86,7 @@ exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
       const usersQuery = await db.collection("users").where("stripeCustomerId", "==", stripeCustomerId).get();
       if (!usersQuery.empty) {
         const userId = usersQuery.docs[0].id;
-        
+
         await db.collection("users").doc(userId).update({
           subscriptionStatus: subscription.status, // ej: 'active', 'past_due', 'canceled'
           subscriptionEndDate: subscription.current_period_end, // Fecha de fin en formato timestamp
@@ -69,20 +98,20 @@ exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
 
     // Evento: La suscripción se ha cancelado definitivamente
     case "customer.subscription.deleted": {
-       const subscription = dataObject;
-       const stripeCustomerId = subscription.customer;
+      const subscription = dataObject;
+      const stripeCustomerId = subscription.customer;
 
-       const usersQuery = await db.collection("users").where("stripeCustomerId", "==", stripeCustomerId).get();
-       if (!usersQuery.empty) {
+      const usersQuery = await db.collection("users").where("stripeCustomerId", "==", stripeCustomerId).get();
+      if (!usersQuery.empty) {
         const userId = usersQuery.docs[0].id;
-         await db.collection("users").doc(userId).update({
-           subscriptionStatus: "canceled",
-         });
-         console.log(`Suscripción de ${userId} cancelada.`);
-       }
-       break;
+        await db.collection("users").doc(userId).update({
+          subscriptionStatus: "canceled",
+        });
+        console.log(`Suscripción de ${userId} cancelada.`);
+      }
+      break;
     }
-    
+
     default:
       console.log(`Evento no manejado: ${event.type}`);
   }

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Administración - Kluppy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Podemos añadir algunos estilos mínimos si es necesario */
+        body { font-family: 'Coolvetica', sans-serif; }
+        .font-coolvetica-heavy { font-family: 'Coolvetica Heavy', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+
+    <header class="bg-gray-800/80 backdrop-blur-sm sticky top-0 z-50">
+        <div class="container mx-auto flex justify-between items-center p-4">
+            <a href="home.html" class="text-4xl font-bold tracking-wider text-white">Kluppy</a>
+            <div class="text-2xl font-semibold text-cyan-400">Panel de Administración</div>
+            <div class="relative">
+                <button id="user-menu-button" class="flex items-center space-x-2">
+                    <img id="user-avatar" class="w-8 h-8 rounded-full object-cover" src="https://placehold.co/40x40/7c3aed/ffffff?text=A" alt="Avatar de admin">
+                </button>
+                <div id="user-menu-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg py-1">
+                    <div class="px-4 py-2 text-sm text-gray-400">
+                        <p class="font-semibold" id="user-display-name">Admin</p>
+                        <p class="truncate" id="user-email">email@example.com</p>
+                    </div>
+                    <div class="border-t border-gray-700"></div>
+                    <a href="home.html" class="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700">🏠 Volver a la App</a>
+                    <button id="logout-button" class="w-full text-left block px-4 py-2 text-sm text-red-400 hover:bg-gray-700">🚪 Cerrar sesión</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 lg:px-8 py-12">
+        <div id="admin-content" class="hidden">
+            <h1 class="text-4xl font-coolvetica-heavy mb-8">Gestión de Cursos</h1>
+            
+            <div id="cursos-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                </div>
+        </div>
+
+        <div id="loading-message" class="text-center py-20">
+            <p class="text-2xl">Verificando permisos...</p>
+        </div>
+    </main>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Configuración de Firebase (igual que en tus otros ficheros) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyAKnJXo7QLcU7jxkhar_-WeLJNHtxXG9Bk",
+            authDomain: "kluppy-duelos.firebaseapp.com",
+            projectId: "kluppy-duelos",
+            storageBucket: "kluppy-duelos.appspot.com",
+            messagingSenderId: "221783859909",
+            appId: "1:221783859909:web:504d021f4e50a11c8486ac",
+            measurementId: "G-0839SL8VP6"
+        };
+
+        // --- Inicialización de Firebase ---
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        
+
+        // --- Referencias al DOM ---
+        const adminContent = document.getElementById('admin-content');
+        const loadingMessage = document.getElementById('loading-message');
+        const cursosContainer = document.getElementById('cursos-container');
+
+        // --- Lógica del Menú de Usuario (igual que en home.html) ---
+        const userMenuButton = document.getElementById('user-menu-button');
+        const userMenuDropdown = document.getElementById('user-menu-dropdown');
+        userMenuButton.addEventListener('click', () => userMenuDropdown.classList.toggle('hidden'));
+        document.addEventListener('click', (e) => {
+            if (!userMenuButton.contains(e.target) && !userMenuDropdown.contains(e.target)) {
+                userMenuDropdown.classList.add('hidden');
+            }
+        });
+        document.getElementById('logout-button').addEventListener('click', () => signOut(auth));
+
+
+        // --- LÓGICA PRINCIPAL DE LA PÁGINA DE ADMIN ---
+
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // El usuario está logueado. Ahora, comprobamos si es admin.
+                document.getElementById('user-display-name').textContent = user.displayName || 'Usuario';
+                document.getElementById('user-email').textContent = user.email;
+                if (user.photoURL) document.getElementById('user-avatar').src = user.photoURL;
+
+                checkAdminPermissions(user);
+            } else {
+                // Si no está logueado, no puede ser admin. Lo redirigimos al login.
+                window.location.href = 'login.html';
+            }
+        });
+
+        async function checkAdminPermissions(user) {
+            try {
+                // Forzamos la actualización del token para obtener los claims más recientes.
+                const idTokenResult = await user.getIdTokenResult(true);
+
+                // **AQUÍ ESTÁ LA MAGIA DE LA SEGURIDAD**
+                // Comprobamos si el claim 'admin' es true.
+                if (idTokenResult.claims.admin === true) {
+                    // ¡Es un admin! Mostramos el contenido y cargamos los cursos.
+                    loadingMessage.classList.add('hidden');
+                    adminContent.classList.remove('hidden');
+                    renderizarCursos();
+                } else {
+                    // Es un usuario normal, no tiene acceso.
+                    showAccessDenied();
+                }
+            } catch (error) {
+                console.error("Error al verificar los permisos de admin:", error);
+                showAccessDenied();
+            }
+        }
+
+        function showAccessDenied() {
+            loadingMessage.innerHTML = `
+                <h2 class="text-3xl font-bold text-red-500">Acceso Denegado</h2>
+                <p class="text-xl mt-4">No tienes permisos para acceder a esta página.</p>
+                <a href="home.html" class="mt-6 inline-block bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-lg">Volver a la página principal</a>
+            `;
+        }
+
+        async function renderizarCursos() {
+            cursosContainer.innerHTML = ''; // Limpiamos el contenedor
+            try {
+                // Obtenemos los documentos de la colección 'cursos'
+                const querySnapshot = await getDocs(collection(db, "cursos"));
+                
+                querySnapshot.forEach((doc) => {
+                    const curso = doc.data();
+                    const cursoId = doc.id;
+
+                    const card = document.createElement('div');
+                    card.className = 'bg-gray-800 rounded-lg p-6 shadow-lg transform hover:scale-105 transition-transform duration-300';
+                    
+                    // Creamos el contenido de la tarjeta
+                    card.innerHTML = `
+                        <h2 class="text-2xl font-bold text-white mb-2">${curso.nombre}</h2>
+                        <p class="text-gray-400 mb-4">${curso.descripcion || ''}</p>
+                        <a href="admin-modulos.html?curso=${cursoId}" class="mt-2 inline-block bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-lg">
+                            Gestionar Módulos
+                        </a>
+                    `;
+                    cursosContainer.appendChild(card);
+                });
+
+            } catch (error) {
+                console.error("Error al cargar los cursos: ", error);
+                cursosContainer.innerHTML = `<p class="text-red-500">No se pudieron cargar los cursos.</p>`;
+            }
+        }
+    </script>
+</body>
+</html>
