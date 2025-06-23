@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crear Nuevo Módulo - Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Coolvetica', sans-serif; }
+        .font-coolvetica-heavy { font-family: 'Coolvetica Heavy', sans-serif; }
+        label { display: block; margin-bottom: 0.5rem; color: #d1d5db; }
+        input, textarea {
+            width: 100%;
+            background-color: #374151;
+            border: 1px solid #4b5563;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            color: white;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #22d3ee;
+            box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.5);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white">
+
+    <main class="container mx-auto px-4 lg:px-8 py-12 max-w-2xl">
+        <div class="text-sm text-gray-400 mb-4">
+            <a href="admin.html" class="hover:underline">Admin</a> &gt;
+            <a id="volver-a-modulos" href="#" class="hover:underline">Módulos</a> &gt;
+            <span class="font-semibold">Crear Nuevo</span>
+        </div>
+
+        <h1 class="text-4xl font-coolvetica-heavy mb-8">Crear Nuevo Módulo</h1>
+
+        <form id="crear-modulo-form" class="space-y-6">
+            <div>
+                <label for="nombre">Nombre del Módulo</label>
+                <input type="text" id="nombre" name="nombre" placeholder="Ej: Fila Guía: j y f" required>
+            </div>
+            <div>
+                <label for="descripcion">Descripción</label>
+                <textarea id="descripcion" name="descripcion" rows="3" placeholder="Ej: Ejercicios para dominar las teclas 'j' y 'f'..."></textarea>
+            </div>
+             <div>
+                <label for="orden">Orden de Aparición</label>
+                <input type="number" id="orden" name="orden" value="1" min="0" required>
+            </div>
+
+            <fieldset class="border border-gray-700 p-4 rounded-lg">
+                <legend class="px-2 text-lg font-semibold text-cyan-400">Criterio de Dominio</legend>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                    <div>
+                        <label for="minPrecision">Precisión Mínima (%)</label>
+                        <input type="number" id="minPrecision" name="minPrecision" value="98" min="0" max="100" required>
+                    </div>
+                    <div>
+                        <label for="intentosRequeridos">Intentos Exitosos</label>
+                        <input type="number" id="intentosRequeridos" name="intentosRequeridos" value="8" min="1" required>
+                    </div>
+                    <div>
+                        <label for="ventanaIntentos">De los últimos (Intentos)</label>
+                        <input type="number" id="ventanaIntentos" name="ventanaIntentos" value="10" min="1" required>
+                    </div>
+                </div>
+            </fieldset>
+
+            <div class="flex justify-end">
+                <button type="submit" id="guardar-btn" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-6 rounded-lg">
+                    Guardar Módulo
+                </button>
+            </div>
+        </form>
+    </main>
+
+    <script type="module">
+        import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAKnJXo7QLcU7jxkhar_-WeLJNHtxXG9Bk",
+            authDomain: "kluppy-duelos.firebaseapp.com",
+            projectId: "kluppy-duelos",
+            storageBucket: "kluppy-duelos.appspot.com",
+            messagingSenderId: "221783859909",
+            appId: "1:221783859909:web:504d021f4e50a11c8486ac",
+            measurementId: "G-0839SL8VP6"
+        };
+        const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // --- LÓGICA PRINCIPAL ---
+        const form = document.getElementById('crear-modulo-form');
+        const guardarBtn = document.getElementById('guardar-btn');
+        const volverLink = document.getElementById('volver-a-modulos');
+
+        // Obtenemos el ID del curso de la URL para saber dónde crear el módulo
+        const params = new URLSearchParams(window.location.search);
+        const cursoId = params.get('curso');
+
+        if (!cursoId) {
+            alert("Error: No se ha especificado un curso.");
+            window.location.href = 'admin.html';
+        }
+
+        // Configuramos el enlace para volver a la página anterior
+        volverLink.href = `admin-modulos.html?curso=${cursoId}`;
+
+        // Añadimos el listener al formulario
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault(); // Evitamos que la página se recargue
+            guardarBtn.disabled = true;
+            guardarBtn.textContent = 'Guardando...';
+
+            try {
+                // Construimos el objeto del nuevo módulo desde los datos del formulario
+                const nuevoModulo = {
+                    nombre: form.nombre.value,
+                    descripcion: form.descripcion.value,
+                    orden: Number(form.orden.value),
+                    createdAt: serverTimestamp(),
+                    criterioMastery: {
+                        minPrecision: Number(form.minPrecision.value),
+                        intentosRequeridos: Number(form.intentosRequeridos.value),
+                        ventanaIntentos: Number(form.ventanaIntentos.value)
+                    }
+                };
+                
+                // Referencia a la subcolección 'modulos' dentro del curso correcto
+                const modulosRef = collection(db, 'cursos', cursoId, 'modulos');
+
+                // Añadimos el nuevo documento a Firestore
+                const docRef = await addDoc(modulosRef, nuevoModulo);
+                console.log("Módulo guardado con ID: ", docRef.id);
+
+                // Redirigimos de vuelta a la lista de módulos
+                alert("¡Módulo creado con éxito!");
+                window.location.href = `admin-modulos.html?curso=${cursoId}`;
+
+            } catch (error) {
+                console.error("Error al guardar el módulo: ", error);
+                alert("Ocurrió un error al guardar el módulo.");
+                guardarBtn.disabled = false;
+                guardarBtn.textContent = 'Guardar Módulo';
+            }
+        });
+
+    </script>
+</body>
+</html>

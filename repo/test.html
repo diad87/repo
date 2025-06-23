@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Página de Prueba de Función</title>
+</head>
+<body>
+    <h1>Página de Prueba</h1>
+    <p>Abre la consola (F12) y haz clic en el botón para probar la función.</p>
+    <button id="testButton">Probar Función 'testAuth'</button>
+
+    <script type="module">
+        import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-functions.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAKnJXo7QLcU7jxkhar_-WeLJNHtxXG9Bk",
+            authDomain: "kluppy-duelos.firebaseapp.com",
+            projectId: "kluppy-duelos",
+            storageBucket: "kluppy-duelos.appspot.com",
+            messagingSenderId: "221783859909",
+            appId: "1:221783859909:web:504d021f4e50a11c8486ac",
+            measurementId: "G-0839SL8VP6"
+        };
+
+        const app       = getApps().length ? getApp() : initializeApp(firebaseConfig);
+        const auth      = getAuth(app);
+        const functions = getFunctions(app);
+
+        
+        const btn = document.getElementById('testButton');
+
+        onAuthStateChanged(auth, async user => {
+            if (!user) {
+                console.log("Usuario no autenticado");
+                return;
+            }
+
+            // 1) Fuerza refresco de token
+            await user.getIdToken(true);
+
+            // 2) Invoca setAdminClaim
+            const setAdminClaim = httpsCallable(functions, 'setAdminClaim');
+            try {
+                const res = await setAdminClaim({ email: "diad87@gmail.com" });
+                console.log("🎉 setAdminClaim:", res.data.message);
+            } catch (err) {
+                console.error("❌ setAdminClaim error:", err);
+            }
+            });
+    </script>
+</body>
+</html>

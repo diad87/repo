@@ -1,121 +1,164 @@
-// Importar los módulos necesarios
-const functions = require("firebase-functions");
-const admin = require("firebase-admin");
-const stripe = require("stripe")("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");
-
-// Nueva línea: Define el secreto que has guardado con `firebase functions:secrets:set`
+// Importar los módulos necesarios y la API v2 de Firebase Functions
+const {onCall, onRequest, HttpsError} = require("firebase-functions/v2/https");
 const {defineString} = require("firebase-functions/params");
+const admin = require("firebase-admin");
+const cors = require("cors")({origin: true});
+
+// Secretos gestionados por Firebase (configura con `firebase functions:secrets:set`)
+const stripeSecret = defineString("STRIPE_SECRET_KEY");
 const stripeWebhookSecret = defineString("STRIPE_WEBHOOK_SECRET");
 
-
+// Inicializar Admin SDK
 admin.initializeApp();
 const db = admin.firestore();
 
-/**
- * Asigna un claim de administrador a un usuario a través de su email.
- * Esta es una función "callable", lo que significa que la podemos llamar
- * de forma segura desde nuestra app.
- */
-exports.setAdminClaim = functions.https.onCall(async (data, context) => {
-  // Para la primera vez, comentamos la seguridad para poder asignarnos el rol a nosotros mismos.
-  // if (context.auth.token.admin !== true) {
-  //   return { error: 'Solo los administradores pueden asignar nuevos administradores.' };
-  // }
+// Endpoint de debug con CORS
+exports.debugAuth = onRequest(async (req, res) => {
+  // Responder preflight
+  if (req.method === "OPTIONS") {
+    res
+        .set("Access-Control-Allow-Origin", "https://kluppy-duelos.web.app")
+        .set("Access-Control-Allow-Methods", "POST, OPTIONS")
+        .set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        .status(204)
+        .send("");
+    return;
+  }
 
-  const email = data.email;
+  // Aplicar CORS
+  await new Promise((resolve) => cors(req, res, resolve));
+
+  const authHeader = req.get("Authorization");
+  console.log(">> AUTH HEADER:", authHeader);
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(400).json({error: "Falta Authorization: Bearer <token>"});
+  }
+
+  const idToken = authHeader.split("Bearer ")[1];
   try {
-    // Buscar al usuario por su email
-    const user = await admin.auth().getUserByEmail(email);
-
-    // Asignar el custom claim.
-    await admin.auth().setCustomUserClaims(user.uid, {
-      admin: true,
-    });
-
-    // Devolver una respuesta de éxito
-    return {
-      message: `¡Éxito! El usuario ${email} ahora es administrador.`,
-    };
-  } catch (error) {
-    console.error("Error al asignar el claim de admin:", error);
-    return {error: error.message};
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    console.log("✅ Token verificado:", decoded);
+    return res.json({status: "OK", uid: decoded.uid, email: decoded.email});
+  } catch (err) {
+    console.error("❌ Error al verificar token:", err);
+    return res.status(401).json({error: err.toString()});
   }
 });
 
-// Esta es la función que actuará como nuestro Webhook
-exports.stripeWebhook = functions.https.onRequest(async (req, res) => {
-  // 1. Verificar que la petición viene de Stripe (muy importante para la seguridad)
+// Callable para testAuth
+exports.testAuth = onCall(async (request) => {
+  const auth = request.auth;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "Usuario no autenticado.");
+  }
+  return {
+    status: "¡Éxito! La autenticación funciona.",
+    email: auth.token.email,
+  };
+});
+
+// Callable para setAdminClaim
+exports.setAdminClaim = onRequest(async (req, res) => {
+  // Manejo de CORS
+  await new Promise((resolve) => cors(req, res, resolve));
+
+  // Verificación manual del token
+  const authHeader = req.get("Authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({error: "No autenticado."});
+  }
+  const idToken = authHeader.split("Bearer ")[1];
+
+  try {
+    // CORRECCIÓN: Simplemente verificamos el token sin asignarlo a una variable.
+    // Si el token es inválido, esto lanzará un error y el 'catch' lo capturará.
+    await admin.auth().verifyIdToken(idToken);
+  } catch (err) {
+    return res.status(401).json({error: "Token inválido."});
+  }
+
+  // El resto de la lógica original
+  const email = req.body.email;
+  if (typeof email !== "string" || !email.trim()) {
+    return res.status(400).json({error: "El email debe ser un string no vacío."});
+  }
+
+  try {
+    const user = await admin.auth().getUserByEmail(email);
+    await admin.auth().setCustomUserClaims(user.uid, {admin: true});
+    return res.json({message: `¡Éxito! El usuario ${email} ahora es administrador.`});
+  } catch (err) {
+    if (err.code === "auth/user-not-found") {
+      return res.status(404).json({error: `No se encontró usuario con el email: ${email}`});
+    }
+    console.error(err);
+    return res.status(500).json({error: "Error interno al procesar la solicitud."});
+  }
+});
+
+// Webhook de Stripe con CORS
+exports.stripeWebhook = onRequest(async (req, res) => {
+  // Responder preflight
+  if (req.method === "OPTIONS") {
+    res
+        .set("Access-Control-Allow-Origin", "https://kluppy-duelos.web.app")
+        .set("Access-Control-Allow-Methods", "POST, OPTIONS")
+        .set("Access-Control-Allow-Headers", "Content-Type, Stripe-Signature")
+        .status(204)
+        .send("");
+    return;
+  }
+
+  // Aplicar CORS
+  await new Promise((resolve) => cors(req, res, resolve));
+
+  // Inicializar Stripe usando el secreto
+  const stripeClient = require("stripe")(stripeSecret.value());
   const signature = req.headers["stripe-signature"];
   let event;
   try {
-    // Usamos el secreto que hemos definido arriba
-    event = stripe.webhooks.constructEvent(req.rawBody, signature, stripeWebhookSecret.value());
+    event = stripeClient.webhooks.constructEvent(req.rawBody, signature, stripeWebhookSecret.value());
   } catch (err) {
-    console.error("⚠️  Error en la verificación del webhook.", err.message);
+    console.error("⚠️ Error en webhook:", err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
-  // 2. Extraer los datos del evento
   const dataObject = event.data.object;
-
-  // 3. Reaccionar a los diferentes tipos de eventos de Stripe
   switch (event.type) {
-    // Evento: El usuario completa el pago por primera vez
     case "checkout.session.completed": {
-      const userId = dataObject.client_reference_id; // ¡Aquí recuperamos el UID de Firebase!
-      const stripeCustomerId = dataObject.customer;
-      const subscriptionId = dataObject.subscription;
-
-      // Actualizamos el documento del usuario en Firestore
+      const userId = dataObject.client_reference_id;
       await db.collection("users").doc(userId).update({
-        stripeCustomerId: stripeCustomerId,
-        subscriptionId: subscriptionId,
+        stripeCustomerId: dataObject.customer,
+        subscriptionId: dataObject.subscription,
         subscriptionStatus: "active",
-        // La fecha de fin se obtiene del evento 'customer.subscription.updated'
       });
-      console.log(`Usuario ${userId} ha iniciado una suscripción.`);
       break;
     }
-
-    // Evento: La suscripción se actualiza (renovación, cancelación futura, etc.)
     case "customer.subscription.updated": {
       const subscription = dataObject;
-      const stripeCustomerId = subscription.customer;
-
-      // Buscamos al usuario por su ID de cliente de Stripe
-      const usersQuery = await db.collection("users").where("stripeCustomerId", "==", stripeCustomerId).get();
+      const usersQuery = await db.collection("users").where("stripeCustomerId", "==", subscription.customer).get();
       if (!usersQuery.empty) {
         const userId = usersQuery.docs[0].id;
-
         await db.collection("users").doc(userId).update({
-          subscriptionStatus: subscription.status, // ej: 'active', 'past_due', 'canceled'
-          subscriptionEndDate: subscription.current_period_end, // Fecha de fin en formato timestamp
+          subscriptionStatus: subscription.status,
+          subscriptionEndDate: subscription.current_period_end,
         });
-        console.log(`Suscripción de ${userId} actualizada a ${subscription.status}.`);
       }
       break;
     }
-
-    // Evento: La suscripción se ha cancelado definitivamente
     case "customer.subscription.deleted": {
       const subscription = dataObject;
-      const stripeCustomerId = subscription.customer;
-
-      const usersQuery = await db.collection("users").where("stripeCustomerId", "==", stripeCustomerId).get();
+      const usersQuery = await db.collection("users").where("stripeCustomerId", "==", subscription.customer).get();
       if (!usersQuery.empty) {
         const userId = usersQuery.docs[0].id;
-        await db.collection("users").doc(userId).update({
-          subscriptionStatus: "canceled",
-        });
-        console.log(`Suscripción de ${userId} cancelada.`);
+        await db.collection("users").doc(userId).update({subscriptionStatus: "canceled"});
       }
       break;
     }
-
     default:
       console.log(`Evento no manejado: ${event.type}`);
   }
 
-  // Responder a Stripe para confirmar que hemos recibido el evento
-  res.sendStatus(200);
+  return res.status(200).send();
 });

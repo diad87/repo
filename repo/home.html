@@ -124,12 +124,8 @@
         <div class="container mx-auto px-4 lg:px-8 pb-8 space-y-12">
             <div>
                 <h3 class="text-3xl font-bold mb-4">Aprender</h3>
-                <div class="carousel flex space-x-6 overflow-x-auto pb-4">
-                    <div class="flex-shrink-0 w-64 group"><a href="#" class="block"><img src="https://placehold.co/400x225/f87171/ffffff?text=Fila+Guía" class="rounded-lg mb-2 transform group-hover:scale-105 transition-transform duration-300" alt="Fila Guía"><h4 class="font-semibold text-lg">Lección 1: Fila Guía</h4><p class="text-sm text-gray-400">Domina ASDF y JKLÑ.</p></a></div>
-                    <div class="flex-shrink-0 w-64 group"><a href="#" class="block"><img src="https://placehold.co/400x225/60a5fa/ffffff?text=Fila+Superior" class="rounded-lg mb-2 transform group-hover:scale-105 transition-transform duration-300" alt="Fila Superior"><h4 class="font-semibold text-lg">Lección 2: Fila Superior</h4><p class="text-sm text-gray-400">Aprende QWERTY y POIU.</p></a></div>
-                    <div class="flex-shrink-0 w-64 group"><a href="#" class="block"><img src="https://placehold.co/400x225/34d399/ffffff?text=Fila+Inferior" class="rounded-lg mb-2 transform group-hover:scale-105 transition-transform duration-300" alt="Fila Inferior"><h4 class="font-semibold text-lg">Lección 3: Fila Inferior</h4><p class="text-sm text-gray-400">Conquista ZXCV y MNB.</p></a></div>
-                     <div class="flex-shrink-0 w-64 group"><a href="#" class="block"><img src="https://placehold.co/400x225/c084fc/ffffff?text=Símbolos" class="rounded-lg mb-2 transform group-hover:scale-105 transition-transform duration-300" alt="Símbolos"><h4 class="font-semibold text-lg">Lección 4: Números y Símbolos</h4><p class="text-sm text-gray-400">Mejora tu velocidad con shift.</p></a></div>
-                </div>
+                <div id="aprender-modulos-container" class="carousel flex space-x-6 overflow-x-auto pb-4">
+                    </div>
             </div>
             <div>
                 <h3 class="text-3xl font-bold mb-4">Practicar</h3>
@@ -290,6 +286,71 @@
         document.getElementById('next-btn').addEventListener('click', nextSlide);
         document.getElementById('prev-btn').addEventListener('click', prevSlide);
         
+        // EN repo/home.html, dentro del <script>
+
+        import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        const db = getFirestore(app);
+
+        async function cargarModulosDeAprender() {
+            const container = document.getElementById('aprender-modulos-container');
+            container.innerHTML = '<p class="text-gray-400">Cargando lecciones...</p>';
+
+            try {
+                const modulosRef = collection(db, "cursos/aprender/modulos");
+                const q = query(modulosRef, orderBy("orden")); // Ordenamos por el campo 'orden'
+                const querySnapshot = await getDocs(q);
+                
+                container.innerHTML = ''; // Limpiamos el 'Cargando...'
+                
+                if (querySnapshot.empty) {
+                    container.innerHTML = '<p class="text-gray-400">Aún no hay módulos de aprendizaje. ¡Créalos en el panel de admin!</p>';
+                    return;
+                }
+
+                querySnapshot.forEach(doc => {
+                    const modulo = doc.data();
+                    const moduloId = doc.id;
+
+                    const card = document.createElement('div');
+                    card.className = 'flex-shrink-0 w-64 group';
+                    
+                    // El enlace ahora apunta a ejercicio.html con los parámetros correctos
+                    card.innerHTML = `
+                        <a href="ejercicio.html?curso=aprender&modulo=${moduloId}" class="block">
+                            <img src="https://placehold.co/400x225/f87171/ffffff?text=${encodeURIComponent(modulo.nombre)}" class="rounded-lg mb-2 transform group-hover:scale-105 transition-transform duration-300" alt="${modulo.nombre}">
+                            <h4 class="font-semibold text-lg">${modulo.nombre}</h4>
+                            <p class="text-sm text-gray-400">${modulo.descripcion || ''}</p>
+                        </a>
+                    `;
+                    container.appendChild(card);
+                });
+
+            } catch (error) {
+                console.error("Error al cargar los módulos de aprendizaje:", error);
+                container.innerHTML = '<p class="text-red-500">No se pudieron cargar las lecciones.</p>';
+            }
+        }
+
+        // --- LÓGICA DE AUTENTICACIÓN ---
+        // Modifica tu 'onAuthStateChanged' existente para que quede así:
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // --- tu código existente para mostrar el usuario ---
+                const name = user.displayName || 'Usuario';
+                userDisplayName.textContent = name;
+                userEmail.textContent = user.email;
+                if (user.photoURL) userAvatar.src = user.photoURL;
+                // -------------------------------------------------
+                
+                // Llamamos a la nueva función cuando el usuario está logueado
+                cargarModulosDeAprender(); 
+
+            } else {
+                const currentUrl = window.location.href;
+                const newPath = currentUrl.substring(0, currentUrl.lastIndexOf('/') + 1) + 'index.html';
+                window.location.href = newPath;
+            }
+        });
         createSlides();
         resetInterval();
     </script>

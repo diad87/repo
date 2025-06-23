@@ -91,11 +91,13 @@
 
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                // El usuario está logueado. Ahora, comprobamos si es admin.
-                document.getElementById('user-display-name').textContent = user.displayName || 'Usuario';
-                document.getElementById('user-email').textContent = user.email;
-                if (user.photoURL) document.getElementById('user-avatar').src = user.photoURL;
+                const userDisplayName = document.getElementById('user-display-name');
+                const userEmail = document.getElementById('user-email');
+                const userAvatar = document.getElementById('user-avatar');
 
+                if(userDisplayName) userDisplayName.textContent = user.displayName || 'Admin';
+                if(userEmail) userEmail.textContent = user.email;
+                if(userAvatar && user.photoURL) userAvatar.src = user.photoURL;
                 checkAdminPermissions(user);
             } else {
                 // Si no está logueado, no puede ser admin. Lo redirigimos al login.
