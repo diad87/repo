@@ -1,0 +1,14 @@
+[
+  {
+    "origin": ["https://kluppy-duelos.web.app"],
+    "method": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    "responseHeader": [
+      "Content-Type",
+      "Authorization",
+      "Content-Length",
+      "User-Agent",
+      "x-firebase-gmpid"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]

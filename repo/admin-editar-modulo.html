@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crear Nuevo Módulo - Admin</title>
+    <title>Editar Módulo - Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: 'Coolvetica', sans-serif; }
+        body { font-family: 'Coolvetica', sans-serif; background-color: #111827; color: white; }
         .font-coolvetica-heavy { font-family: 'Coolvetica Heavy', sans-serif; }
         label { display: block; margin-bottom: 0.5rem; color: #d1d5db; }
         input, textarea {
@@ -24,16 +24,15 @@
         }
     </style>
 </head>
-<body class="bg-gray-900 text-white">
-
+<body>
     <main class="container mx-auto px-4 lg:px-8 py-12 max-w-2xl">
         <div class="text-sm text-gray-400 mb-4">
             <a href="admin.html" class="hover:underline">Admin</a> &gt;
             <a id="volver-a-modulos" href="#" class="hover:underline">Módulos</a> &gt;
-            <span class="font-semibold">Crear Nuevo</span>
+            <span class="font-semibold">Editar Módulo</span>
         </div>
 
-        <h1 class="text-4xl font-coolvetica-heavy mb-8">Crear Nuevo Módulo</h1>
+        <h1 class="text-4xl font-coolvetica-heavy mb-8">Editar Módulo</h1>
 
         <form id="modulo-form" class="space-y-6">
             <div>
@@ -77,15 +76,14 @@
 
     <script type="module">
         import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
-
 
         const firebaseConfig = {
             apiKey: "AIzaSyAKnJXo7QLcU7jxkhar_-WeLJNHtxXG9Bk",
             authDomain: "kluppy-duelos.firebaseapp.com",
             projectId: "kluppy-duelos",
-            storageBucket: "kluppy-duelos.firebasestorage.app",
+            storageBucket: "kluppy-duelos.appspot.com",
             messagingSenderId: "221783859909",
             appId: "1:221783859909:web:504d021f4e50a11c8486ac",
             measurementId: "G-0839SL8VP6"
@@ -100,17 +98,54 @@
         const colorInput = document.getElementById('color');
         const imagenInput = document.getElementById('imagen');
         const imagenPreview = document.getElementById('imagen-preview');
+        const tituloPagina = document.querySelector('h1');
 
         // --- Lógica de la Página ---
         const params = new URLSearchParams(window.location.search);
         const cursoId = params.get('curso');
+        const moduloId = params.get('modulo');
 
-        // 1. Generar color aleatorio por defecto
-        const randomColor = () => "#" + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
-        colorInput.value = randomColor();
+        let imagenFile = null; // Variable para guardar la NUEVA imagen si el usuario elige una
 
-        // 2. Previsualizar imagen seleccionada
-        let imagenFile = null;
+        if (!cursoId || !moduloId) {
+            alert("Error: Faltan IDs de curso o módulo.");
+            window.location.href = 'admin.html';
+        } else {
+            cargarDatosDelModulo();
+        }
+
+        // 1. Función para cargar los datos existentes en el formulario
+        async function cargarDatosDelModulo() {
+            const moduloRef = doc(db, "cursos", cursoId, "modulos", moduloId);
+            const docSnap = await getDoc(moduloRef);
+
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                tituloPagina.textContent = `Editar Módulo: ${data.nombre}`;
+                form.nombre.value = data.nombre || '';
+                form.descripcion.value = data.descripcion || '';
+                form.orden.value = data.orden || 0;
+                colorInput.value = data.color || '#f87171';
+                
+                // Si el módulo ya tiene una imagen, la mostramos
+                if (data.imageUrl) {
+                    imagenPreview.src = data.imageUrl;
+                    imagenPreview.classList.remove('hidden');
+                }
+
+                // Rellenamos el criterio de dominio
+                if (data.criterioMastery) {
+                    form.minPrecision.value = data.criterioMastery.minPrecision || 98;
+                    form.intentosRequeridos.value = data.criterioMastery.intentosRequeridos || 8;
+                    form.ventanaIntentos.value = data.criterioMastery.ventanaIntentos || 10;
+                }
+            } else {
+                alert("El módulo que intentas editar no existe.");
+                window.location.href = `admin-modulos.html?curso=${cursoId}`;
+            }
+        }
+
+        // 2. Lógica para previsualizar una NUEVA imagen si se selecciona
         imagenInput.addEventListener('change', (e) => {
             if (e.target.files[0]) {
                 imagenFile = e.target.files[0];
@@ -123,49 +158,57 @@
             }
         });
 
-        // 3. Guardar el formulario
+        // 3. Lógica para GUARDAR las actualizaciones
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             guardarBtn.disabled = true;
-            guardarBtn.textContent = 'Guardando...';
+            guardarBtn.textContent = 'Actualizando...';
 
             try {
-                let imageUrl = null;
-                // Si el usuario seleccionó una imagen, la subimos primero
-                if (imagenFile) {
-                    const timestamp = Date.now();
-                    const path = `module-images/${cursoId}/${timestamp}_${imagenFile.name}`;
-                    const storageRef = ref(storage, path);
+                const moduloRef = doc(db, "cursos", cursoId, "modulos", moduloId);
+                
+                // Obtenemos los datos actuales para no perder la URL de la imagen si no se cambia
+                const docActualSnap = await getDoc(moduloRef);
+                const datosActuales = docActualSnap.data();
+                let imageUrl = datosActuales.imageUrl || null;
 
+                // Si el usuario seleccionó una NUEVA imagen, la subimos y actualizamos la URL
+                if (imagenFile) {
+                    // (Opcional: aquí iría la lógica para borrar la imagen antigua de Storage)
+                    const storageRef = ref(storage, `module-images/${cursoId}/${Date.now()}_${imagenFile.name}`);
                     const uploadResult = await uploadBytes(storageRef, imagenFile);
-                    const imageUrl    = await getDownloadURL(uploadResult.ref);
                     imageUrl = await getDownloadURL(uploadResult.ref);
                 }
 
-                // Creamos el objeto del módulo
-                const nuevoModulo = {
+                // Creamos el objeto con los datos actualizados
+                const datosActualizados = {
                     nombre: form.nombre.value,
                     descripcion: form.descripcion.value,
                     orden: Number(form.orden.value),
                     color: colorInput.value,
-                    imageUrl: imageUrl, // Será null si no se subió imagen
-                    createdAt: serverTimestamp(),
-                    criterioMastery: { /* ...tus criterios... */ }
+                    imageUrl: imageUrl, // Usamos la nueva URL o mantenemos la antigua
+                    criterioMastery: {
+                        minPrecision: Number(form.minPrecision.value),
+                        intentosRequeridos: Number(form.intentosRequeridos.value),
+                        ventanaIntentos: Number(form.ventanaIntentos.value)
+                    }
                 };
+                
+                // Actualizamos el documento en Firestore
+                await updateDoc(moduloRef, datosActualizados);
 
-                const modulosRef = collection(db, 'cursos', cursoId, 'modulos');
-                await addDoc(modulosRef, nuevoModulo);
-
-                alert("¡Módulo creado con éxito!");
+                alert("¡Módulo actualizado con éxito!");
                 window.location.href = `admin-modulos.html?curso=${cursoId}`;
 
             } catch (error) {
-                console.error("Error al guardar el módulo:", error);
-                alert("Ocurrió un error al guardar el módulo.");
+                console.error("Error actualizando el módulo:", error);
+                alert("No se pudo actualizar el módulo.");
                 guardarBtn.disabled = false;
-                guardarBtn.textContent = 'Guardar Módulo';
+                guardarBtn.textContent = 'Actualizar Módulo';
             }
         });
-    </script>
+
+</script>
+
 </body>
 </html>

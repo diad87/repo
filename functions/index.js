@@ -59,41 +59,26 @@ exports.testAuth = onCall(async (request) => {
 });
 
 // Callable para setAdminClaim
-exports.setAdminClaim = onRequest(async (req, res) => {
-  // Manejo de CORS
-  await new Promise((resolve) => cors(req, res, resolve));
-
-  // Verificación manual del token
-  const authHeader = req.get("Authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({error: "No autenticado."});
+exports.setAdminClaim = onCall(async (request) => {
+  const auth = request.auth;
+  const data = request.data;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "Usuario no autenticado.");
   }
-  const idToken = authHeader.split("Bearer ")[1];
-
-  try {
-    // CORRECCIÓN: Simplemente verificamos el token sin asignarlo a una variable.
-    // Si el token es inválido, esto lanzará un error y el 'catch' lo capturará.
-    await admin.auth().verifyIdToken(idToken);
-  } catch (err) {
-    return res.status(401).json({error: "Token inválido."});
-  }
-
-  // El resto de la lógica original
-  const email = req.body.email;
+  const email = data.email;
   if (typeof email !== "string" || !email.trim()) {
-    return res.status(400).json({error: "El email debe ser un string no vacío."});
+    throw new HttpsError("invalid-argument", "El email debe ser un string no vacío.");
   }
-
   try {
     const user = await admin.auth().getUserByEmail(email);
     await admin.auth().setCustomUserClaims(user.uid, {admin: true});
-    return res.json({message: `¡Éxito! El usuario ${email} ahora es administrador.`});
+    return {message: `¡Éxito! El usuario ${email} ahora es administrador.`};
   } catch (err) {
     if (err.code === "auth/user-not-found") {
-      return res.status(404).json({error: `No se encontró usuario con el email: ${email}`});
+      throw new HttpsError("not-found", `No se encontró ningún usuario con el email: ${email}`);
     }
     console.error(err);
-    return res.status(500).json({error: "Error interno al procesar la solicitud."});
+    throw new HttpsError("internal", "Error interno al procesar la solicitud.");
   }
 });
 

@@ -61,7 +61,7 @@
     <script type="module">
         import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, getDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, getDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Configuración e Inicialización de Firebase ---
         const firebaseConfig = {
@@ -158,8 +158,10 @@
                             <h3 class="text-xl font-bold">${modulo.nombre}</h3>
                             <p class="text-sm text-gray-400">${modulo.descripcion || ''}</p>
                         </div>
-                        <div>
+                        <div class="flex items-center space-x-2">
                             <a href="admin-ejercicios.html?curso=${cursoId}&modulo=${moduloId}" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-3 rounded-lg text-sm">Gestionar Ejercicios</a>
+                            <a href="admin-editar-modulo.html?curso=${cursoId}&modulo=${moduloId}" class="editar-btn bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-lg text-sm">Editar</a>
+                            <button data-id="${moduloId}" class="eliminar-btn bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-lg text-sm">Eliminar</button>
                         </div>
                     `;
                     modulosContainer.appendChild(card);
@@ -170,6 +172,27 @@
                 modulosContainer.innerHTML = `<p class="text-red-500">Error al cargar los módulos.</p>`;
             }
         }
+
+        // Usamos delegación de eventos para manejar todos los clics en el contenedor
+        modulosContainer.addEventListener('click', async (e) => {
+            // Verificamos si el clic fue en un botón de eliminar
+            if (e.target.classList.contains('eliminar-btn')) {
+                const moduloId = e.target.dataset.id;
+
+                // Pedimos confirmación para evitar borrados accidentales
+                if (confirm("¿Estás seguro de que quieres eliminar este módulo? Esta acción no se puede deshacer.")) {
+                    try {
+                        const moduloRef = doc(db, "cursos", cursoId, "modulos", moduloId);
+                        await deleteDoc(moduloRef);
+                        alert("Módulo eliminado con éxito.");
+                        cargarModulos(); // Recargamos la lista para que desaparezca
+                    } catch (error) {
+                        console.error("Error al eliminar el módulo:", error);
+                        alert("No se pudo eliminar el módulo.");
+                    }
+                }
+            }
+        });
     </script>
 </body>
 </html>

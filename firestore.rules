@@ -3,28 +3,19 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- REGLAS PARA EL PANEL DE ADMINISTRACIÓN ---
-
-    // Permite a los admins LEER la lista de cursos y módulos
-    match /cursos/{cursoId} {
-      allow read: if request.auth.token.admin == true;
-    }
-
+    // =============================================================
+    // REGLA ÚNICA Y CORRECTA PARA TODA LA GESTIÓN DE CURSOS
+    // =============================================================
+    // Esta única regla da a los administradores acceso total (leer y escribir)
+    // a la colección 'cursos' y a CUALQUIER documento o subcolección
+    // que haya dentro de ella (módulos, ejercicios, etc.).
     match /cursos/{document=**} {
       allow read, write: if request.auth.token.admin == true;
     }
-    
-    match /cursos/{cursoId}/modulos/{moduloId} {
-      allow read, update, delete: if request.auth.token.admin == true;
 
-      // REGLA CLAVE: Permite a los admins CREAR, LEER y ESCRIBIR
-      // en la subcolección de ejercicios.
-      match /ejercicios/{ejercicioId} {
-        allow read, create, write, delete: if request.auth.token.admin == true;
-      }
-    }
-
-    // --- TUS REGLAS EXISTENTES ---
+    // =============================================================
+    // TUS OTRAS REGLAS PARA USUARIOS NORMALES
+    // =============================================================
 
     match /users/{userId} {
       allow read, create, update: if request.auth != null && request.auth.uid == userId;

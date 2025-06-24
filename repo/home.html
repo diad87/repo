@@ -314,10 +314,19 @@
                     const card = document.createElement('div');
                     card.className = 'flex-shrink-0 w-64 group';
                     
+                    // --- LÓGICA ACTUALIZADA PARA LA IMAGEN ---
+                    // 1. Comprobamos si el módulo tiene una URL de imagen guardada.
+                    // 2. Si la tiene, la usamos.
+                    // 3. Si no, usamos el color guardado para generar una imagen de placeholder.
+                    const imgSrc = modulo.imageUrl 
+                        ? modulo.imageUrl 
+                        : `https://placehold.co/400x225/${(modulo.color || '#f87171').substring(1)}/ffffff?text=${encodeURIComponent(modulo.nombre)}`;
+
                     // El enlace ahora apunta a ejercicio.html con los parámetros correctos
+                    // y la etiqueta <img> usa la fuente de imagen dinámica (imgSrc).
                     card.innerHTML = `
                         <a href="ejercicio.html?curso=aprender&modulo=${moduloId}" class="block">
-                            <img src="https://placehold.co/400x225/f87171/ffffff?text=${encodeURIComponent(modulo.nombre)}" class="rounded-lg mb-2 transform group-hover:scale-105 transition-transform duration-300" alt="${modulo.nombre}">
+                            <img src="${imgSrc}" class="w-full h-36 object-cover rounded-lg mb-2 transform group-hover:scale-105 transition-transform duration-300" alt="${modulo.nombre}">
                             <h4 class="font-semibold text-lg">${modulo.nombre}</h4>
                             <p class="text-sm text-gray-400">${modulo.descripcion || ''}</p>
                         </a>
