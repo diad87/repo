@@ -65,7 +65,22 @@
             </fieldset>
 
             <fieldset class="border border-gray-700 p-4 rounded-lg">
-                </fieldset>
+                <legend class="px-2 text-lg font-semibold text-cyan-400">Criterio de Dominio</legend>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                    <div>
+                        <label for="minPrecision">Precisión Mínima (%)</label>
+                        <input type="number" id="minPrecision" name="minPrecision" value="98" min="0" max="100" required>
+                    </div>
+                    <div>
+                        <label for="intentosRequeridos">Intentos Exitosos</label>
+                        <input type="number" id="intentosRequeridos" name="intentosRequeridos" value="8" min="1" required>
+                    </div>
+                    <div>
+                        <label for="ventanaIntentos">De los últimos (Intentos)</label>
+                        <input type="number" id="ventanaIntentos" name="ventanaIntentos" value="10" min="1" required>
+                    </div>
+                </div>
+            </fieldset>
 
             <div class="flex justify-end">
                 <button type="submit" id="guardar-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg">
@@ -77,22 +92,42 @@
 
     <script type="module">
         import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-functions.js";
 
-
+        // --- Configuración e Inicialización de Firebase ---
         const firebaseConfig = {
             apiKey: "AIzaSyAKnJXo7QLcU7jxkhar_-WeLJNHtxXG9Bk",
             authDomain: "kluppy-duelos.firebaseapp.com",
             projectId: "kluppy-duelos",
-            storageBucket: "kluppy-duelos.firebasestorage.app",
+            storageBucket: "kluppy-duelos.appspot.com",
             messagingSenderId: "221783859909",
             appId: "1:221783859909:web:504d021f4e50a11c8486ac",
             measurementId: "G-0839SL8VP6"
         };
+        
         const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const storage = getStorage(app);
+        const auth = getAuth(app); // <-- Movemos 'auth' aquí para que sea global al script
+        
+        form.style.display = "none";
+
+    
+        onAuthStateChanged(auth, (user) => {
+            if (!user) {
+                // Si no está logueado, lo mandamos al login
+                window.location.href = "/login.html";
+            } else {
+                // Opcional: habilitar el formulario una vez que sabemos que existe user
+                form.style.display = "";
+            }
+            });
+
+        const functions = getFunctions(app);
+        const crearModuloFn = httpsCallable(functions, "createModule");
 
         // --- Referencias al DOM ---
         const form = document.getElementById('modulo-form');
@@ -100,17 +135,17 @@
         const colorInput = document.getElementById('color');
         const imagenInput = document.getElementById('imagen');
         const imagenPreview = document.getElementById('imagen-preview');
-
+        
         // --- Lógica de la Página ---
         const params = new URLSearchParams(window.location.search);
         const cursoId = params.get('curso');
+        let imagenFile = null;
 
-        // 1. Generar color aleatorio por defecto
+        // Generar color aleatorio por defecto
         const randomColor = () => "#" + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
         colorInput.value = randomColor();
 
-        // 2. Previsualizar imagen seleccionada
-        let imagenFile = null;
+        // Previsualizar imagen seleccionada
         imagenInput.addEventListener('change', (e) => {
             if (e.target.files[0]) {
                 imagenFile = e.target.files[0];
@@ -122,48 +157,67 @@
                 reader.readAsDataURL(imagenFile);
             }
         });
-
-        // 3. Guardar el formulario
+        
+        // Lógica para guardar el formulario
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             guardarBtn.disabled = true;
-            guardarBtn.textContent = 'Guardando...';
+            guardarBtn.textContent = 'Guardando…';
 
-            try {
-                let imageUrl = null;
-                // Si el usuario seleccionó una imagen, la subimos primero
-                if (imagenFile) {
-                    const timestamp = Date.now();
-                    const path = `module-images/${cursoId}/${timestamp}_${imagenFile.name}`;
-                    const storageRef = ref(storage, path);
-
-                    const uploadResult = await uploadBytes(storageRef, imagenFile);
-                    const imageUrl    = await getDownloadURL(uploadResult.ref);
-                    imageUrl = await getDownloadURL(uploadResult.ref);
+            const user = auth.currentUser;
+                if (!user) {
+                    alert("Debes estar autenticado para crear un módulo");
+                    window.location.href = "/login.html";
+                    return;
                 }
 
-                // Creamos el objeto del módulo
-                const nuevoModulo = {
-                    nombre: form.nombre.value,
-                    descripcion: form.descripcion.value,
-                    orden: Number(form.orden.value),
-                    color: colorInput.value,
-                    imageUrl: imageUrl, // Será null si no se subió imagen
-                    createdAt: serverTimestamp(),
-                    criterioMastery: { /* ...tus criterios... */ }
-                };
+            // ← Aquí inicializas imageUrl para que exista siempre
+            let imageUrl = null;
 
-                const modulosRef = collection(db, 'cursos', cursoId, 'modulos');
-                await addDoc(modulosRef, nuevoModulo);
+            try {
+            // 1) Si hay fichero de imagen, lo subes y asignas a imageUrl
+            if (imagenFile) {
+                const formData = new FormData();
+                formData.append('image', imagenFile);
+                const token = await auth.currentUser.getIdToken(/*true*/);
+                const uploadResponse = await fetch(
+                "https://us-central1-kluppy-duelos.cloudfunctions.net/uploadModuleImage",
+                {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    body: formData,
+                }
+                );
+                if (!uploadResponse.ok) throw new Error('Error subiendo imagen');
+                const { imageUrl: uploaded } = await uploadResponse.json();
+                imageUrl = uploaded;
+            }
 
-                alert("¡Módulo creado con éxito!");
-                window.location.href = `admin-modulos.html?curso=${cursoId}`;
+            // 2) Ahora construyes el payload usando imageUrl (que ya existe aunque siga siendo null)
+            const payload = {
+                cursoId,
+                nombre: form.nombre.value,
+                descripcion: form.descripcion.value,
+                orden: Number(form.orden.value),
+                color: colorInput.value,
+                imageUrl,    // ← aquí nunca está indefinida
+                criterioMastery: {
+                minPrecision: Number(form.minPrecision.value),
+                intentosRequeridos: Number(form.intentosRequeridos.value),
+                ventanaIntentos: Number(form.ventanaIntentos.value),
+                }
+            };
+
+            // 3) Llamada a la función callable
+            const result = await crearModuloFn(payload);
+            alert(result.data.message);
+            window.location.href = `admin-modulos.html?curso=${cursoId}`;
 
             } catch (error) {
-                console.error("Error al guardar el módulo:", error);
-                alert("Ocurrió un error al guardar el módulo.");
-                guardarBtn.disabled = false;
-                guardarBtn.textContent = 'Guardar Módulo';
+            console.error("Error al guardar el módulo:", error);
+            alert("Ocurrió un error: " + error.message);
+            guardarBtn.disabled = false;
+            guardarBtn.textContent = 'Guardar Módulo';
             }
         });
     </script>
