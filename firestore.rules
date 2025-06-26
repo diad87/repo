@@ -3,35 +3,29 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // =============================================================
-    // REGLA ÚNICA Y CORRECTA PARA TODA LA GESTIÓN DE CURSOS
-    // =============================================================
-    // Esta única regla da a los administradores acceso total (leer y escribir)
-    // a la colección 'cursos' y a CUALQUIER documento o subcolección
-    // que haya dentro de ella (módulos, ejercicios, etc.).
-    match /cursos/{document=**} {
-      allow read, write: if request.auth.token.admin == true;
-    }
-
-    // =============================================================
-    // TUS OTRAS REGLAS PARA USUARIOS NORMALES
-    // =============================================================
-
-    match /users/{userId} {
-      allow read, create, update: if request.auth != null && request.auth.uid == userId;
-      allow delete: if false;
-    }
-
-    match /perfilesUsuarios/{userId} {
-      allow read, create, update: if request.auth != null && request.auth.uid == userId;
-      allow delete: if false;
-    }
-
-    match /duelos/{dueloId} {
+    // REGLA 1: Para la colección principal de cursos
+    match /cursos/{cursoId} {
       allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null;
-      allow delete: if false;
+    }
+
+    // REGLA 2: Para la sub-colección de módulos
+    match /cursos/{cursoId}/modulos/{moduloId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.resource.data.ownerUID == request.auth.uid;
+      allow update, delete: if request.auth != null && resource.data.ownerUID == request.auth.uid;
+
+      // --- REGLA 3: Para la sub-colección de ejercicios (CORREGIDA) ---
+      match /ejercicios/{ejercicioId} {
+        
+        allow read: if request.auth != null;
+
+        // CREATE: Permite crear si el usuario está autenticado y se establece a sí mismo como propietario en el nuevo documento.
+        // Esta es la versión más limpia y robusta.
+        allow create: if request.auth != null && request.resource.data.ownerUID == request.auth.uid;
+
+        // UPDATE / DELETE: Permite modificar o borrar solo si el usuario es el propietario del ejercicio existente.
+        allow update, delete: if request.auth != null && resource.data.ownerUID == request.auth.uid;
+      }
     }
   }
 }

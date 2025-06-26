@@ -75,7 +75,7 @@
     <script type="module">
         import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, getDocs, doc, getDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, getDoc, addDoc, serverTimestamp, query, orderBy, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAKnJXo7QLcU7jxkhar_-WeLJNHtxXG9Bk",
@@ -107,19 +107,17 @@
             alert("Error: Faltan los IDs de curso o módulo en la URL.");
             window.location.href = 'admin.html';
         } else {
-            volverLink.href = `admin-modulos.html?curso=${cursoId}`; // Enlace para volver
+            volverLink.href = `admin-modulos.html?curso=${cursoId}`; 
             
             onAuthStateChanged(auth, user => {
                 if (user) {
-                    // Rellenar datos del usuario en el header
                     const userDisplayName = document.getElementById('user-display-name');
                     const userEmail = document.getElementById('user-email');
                     const userAvatar = document.getElementById('user-avatar');
                     if(userDisplayName) userDisplayName.textContent = user.displayName || 'Admin';
                     if(userEmail) userEmail.textContent = user.email;
                     if(userAvatar && user.photoURL) userAvatar.src = user.photoURL;
-
-                    // Comprobar permisos
+                    
                     user.getIdTokenResult(true).then(idTokenResult => {
                         if (idTokenResult.claims.admin === true) {
                             cargarInfoModulo();
@@ -146,24 +144,25 @@
         async function cargarEjercicios() {
             ejerciciosContainer.innerHTML = '<p class="text-gray-400">Cargando...</p>';
             const ejerciciosRef = collection(db, "cursos", cursoId, "modulos", moduloId, "ejercicios");
+            const q = query(ejerciciosRef, orderBy("createdAt", "asc"));
             
             try {
-                const querySnapshot = await getDocs(ejerciciosRef);
+                const querySnapshot = await getDocs(q);
                 ejerciciosContainer.innerHTML = ''; 
                 if (querySnapshot.empty) {
                     ejerciciosContainer.innerHTML = '<p class="text-gray-400">No hay ejercicios en este módulo todavía. ¡Añade el primero!</p>';
                 } else {
-                    querySnapshot.docs.sort((a,b) => a.data().createdAt - b.data().createdAt).forEach(doc => {
+                    querySnapshot.forEach(doc => {
                         const ejercicio = doc.data();
                         const card = document.createElement('div');
-                        card.className = 'bg-gray-800 p-3 rounded-lg flex justify-between items-center';
-                        card.innerHTML = `<p class="truncate font-mono text-gray-300">${ejercicio.texto}</p> <button class="text-red-500 hover:text-red-400 text-sm">Eliminar</button>`;
+                        card.className = 'bg-gray-700 p-3 rounded-lg flex justify-between items-center';
+                        card.innerHTML = `<p class="truncate font-mono text-gray-300">${ejercicio.texto}</p> <button data-id="${doc.id}" class="eliminar-btn text-red-500 hover:text-red-400 text-sm font-semibold">Eliminar</button>`;
                         ejerciciosContainer.appendChild(card);
                     });
                 }
             } catch (error) {
                 console.error("Error cargando ejercicios:", error);
-                ejerciciosContainer.innerHTML = `<p class="text-red-500">Error al cargar ejercicios. Revisa los permisos en tus reglas de Firestore.</p>`;
+                ejerciciosContainer.innerHTML = `<p class="text-red-500">Error al cargar ejercicios. Revisa los permisos.</p>`;
             }
         }
 
@@ -176,10 +175,19 @@
             guardarBtn.textContent = 'Guardando...';
 
             try {
+                // --- CORRECCIÓN CLAVE ---
+                const user = auth.currentUser;
+                if (!user) {
+                    throw new Error("Usuario no autenticado para esta operación.");
+                }
+                
                 const ejerciciosRef = collection(db, "cursos", cursoId, "modulos", moduloId, "ejercicios");
+                
+                // Añadimos el campo 'ownerUID' al objeto que se guarda
                 await addDoc(ejerciciosRef, {
                     texto: texto,
                     tipo: 'texto_fijo',
+                    ownerUID: user.uid,
                     createdAt: serverTimestamp()
                 });
                 
@@ -192,6 +200,23 @@
             } finally {
                 guardarBtn.disabled = false;
                 guardarBtn.textContent = 'Guardar Ejercicio';
+            }
+        });
+
+        // Delegación de eventos para el botón de eliminar
+        ejerciciosContainer.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('eliminar-btn')) {
+                const ejercicioId = e.target.dataset.id;
+                if (confirm('¿Estás seguro de que quieres eliminar este ejercicio?')) {
+                    try {
+                        const ejercicioRef = doc(db, "cursos", cursoId, "modulos", moduloId, "ejercicios", ejercicioId);
+                        await deleteDoc(ejercicioRef);
+                        await cargarEjercicios(); // Recargar la lista
+                    } catch (error) {
+                        console.error("Error al eliminar:", error);
+                        alert("No se pudo eliminar el ejercicio.");
+                    }
+                }
             }
         });
     </script>

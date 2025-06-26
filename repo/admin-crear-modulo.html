@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Coolvetica', sans-serif; }
-        .font-coolvetica-heavy { font-family: 'Coolvetica Heavy', sans-serif; }
+    .font-coolvetica-heavy { font-family: 'Coolvetica Heavy', sans-serif; }
         label { display: block; margin-bottom: 0.5rem; color: #d1d5db; }
         input, textarea {
             width: 100%;
@@ -35,7 +35,7 @@
 
         <h1 class="text-4xl font-coolvetica-heavy mb-8">Crear Nuevo Módulo</h1>
 
-        <form id="modulo-form" class="space-y-6">
+        <form id="modulo-form" class="space-y-6" style="display: none;">
             <div>
                 <label for="nombre">Nombre del Módulo</label>
                 <input type="text" id="nombre" name="nombre" required>
@@ -93,41 +93,24 @@
     <script type="module">
         import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
         import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
-        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-functions.js";
 
         // --- Configuración e Inicialización de Firebase ---
         const firebaseConfig = {
             apiKey: "AIzaSyAKnJXo7QLcU7jxkhar_-WeLJNHtxXG9Bk",
             authDomain: "kluppy-duelos.firebaseapp.com",
             projectId: "kluppy-duelos",
-            storageBucket: "kluppy-duelos.appspot.com",
+            storageBucket: "kluppy-duelos.firebasestorage.app",
             messagingSenderId: "221783859909",
             appId: "1:221783859909:web:504d021f4e50a11c8486ac",
             measurementId: "G-0839SL8VP6"
         };
         
         const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        const auth = getAuth(app);
         const storage = getStorage(app);
-        const auth = getAuth(app); // <-- Movemos 'auth' aquí para que sea global al script
-        
-        form.style.display = "none";
-
-    
-        onAuthStateChanged(auth, (user) => {
-            if (!user) {
-                // Si no está logueado, lo mandamos al login
-                window.location.href = "/login.html";
-            } else {
-                // Opcional: habilitar el formulario una vez que sabemos que existe user
-                form.style.display = "";
-            }
-            });
-
-        const functions = getFunctions(app);
-        const crearModuloFn = httpsCallable(functions, "createModule");
+        const db = getFirestore(app);
 
         // --- Referencias al DOM ---
         const form = document.getElementById('modulo-form');
@@ -141,83 +124,85 @@
         const cursoId = params.get('curso');
         let imagenFile = null;
 
-        // Generar color aleatorio por defecto
-        const randomColor = () => "#" + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                form.style.display = "block";
+            } else {
+                window.location.href = "/login.html";
+            }
+        });
+
+        const randomColor = () => "#" + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
         colorInput.value = randomColor();
 
-        // Previsualizar imagen seleccionada
         imagenInput.addEventListener('change', (e) => {
-            if (e.target.files[0]) {
-                imagenFile = e.target.files[0];
+            if (e.target.files && e.target.files.length > 0) {
+                // LA CORRECCIÓN DEFINITIVA ESTÁ AQUÍ:
+                imagenFile = e.target.files[0]; 
+                
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     imagenPreview.src = event.target.result;
                     imagenPreview.classList.remove('hidden');
                 };
                 reader.readAsDataURL(imagenFile);
+            } else {
+                imagenFile = null;
             }
         });
         
-        // Lógica para guardar el formulario
+        // --- Lógica de Guardado ---
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             guardarBtn.disabled = true;
             guardarBtn.textContent = 'Guardando…';
 
             const user = auth.currentUser;
-                if (!user) {
-                    alert("Debes estar autenticado para crear un módulo");
-                    window.location.href = "/login.html";
-                    return;
-                }
+            if (!user || !cursoId) {
+                alert("Error: Sesión no válida o falta el ID del curso.");
+                guardarBtn.disabled = false;
+                guardarBtn.textContent = 'Guardar Módulo';
+                return;
+            }
 
-            // ← Aquí inicializas imageUrl para que exista siempre
             let imageUrl = null;
 
             try {
-            // 1) Si hay fichero de imagen, lo subes y asignas a imageUrl
-            if (imagenFile) {
-                const formData = new FormData();
-                formData.append('image', imagenFile);
-                const token = await auth.currentUser.getIdToken(/*true*/);
-                const uploadResponse = await fetch(
-                "https://us-central1-kluppy-duelos.cloudfunctions.net/uploadModuleImage",
-                {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${token}` },
-                    body: formData,
+                if (imagenFile) {
+                    guardarBtn.textContent = 'Subiendo imagen...';
+                    const filePath = `cursos/${cursoId}/modulos/${Date.now()}_${imagenFile.name}`;
+                    const storageRef = ref(storage, filePath);
+                    const uploadTask = await uploadBytesResumable(storageRef, imagenFile);
+                    imageUrl = await getDownloadURL(uploadTask.ref);
                 }
-                );
-                if (!uploadResponse.ok) throw new Error('Error subiendo imagen');
-                const { imageUrl: uploaded } = await uploadResponse.json();
-                imageUrl = uploaded;
-            }
 
-            // 2) Ahora construyes el payload usando imageUrl (que ya existe aunque siga siendo null)
-            const payload = {
-                cursoId,
-                nombre: form.nombre.value,
-                descripcion: form.descripcion.value,
-                orden: Number(form.orden.value),
-                color: colorInput.value,
-                imageUrl,    // ← aquí nunca está indefinida
-                criterioMastery: {
-                minPrecision: Number(form.minPrecision.value),
-                intentosRequeridos: Number(form.intentosRequeridos.value),
-                ventanaIntentos: Number(form.ventanaIntentos.value),
-                }
-            };
+                guardarBtn.textContent = 'Registrando módulo...';
+                const moduloData = {
+                    ownerUID: user.uid,
+                    cursoId: cursoId,
+                    nombre: form.nombre.value,
+                    descripcion: form.descripcion.value,
+                    orden: Number(form.orden.value),
+                    color: colorInput.value,
+                    imageUrl: imageUrl,
+                    criterioMastery: {
+                        minPrecision: Number(form.minPrecision.value),
+                        intentosRequeridos: Number(form.intentosRequeridos.value),
+                        ventanaIntentos: Number(form.ventanaIntentos.value),
+                    },
+                    createdAt: serverTimestamp()
+                };
 
-            // 3) Llamada a la función callable
-            const result = await crearModuloFn(payload);
-            alert(result.data.message);
-            window.location.href = `admin-modulos.html?curso=${cursoId}`;
+                await addDoc(collection(db, "cursos", cursoId, "modulos"), moduloData);
+
+                alert("¡Módulo creado con éxito!");
+                window.location.href = `admin-modulos.html?curso=${cursoId}`;
 
             } catch (error) {
-            console.error("Error al guardar el módulo:", error);
-            alert("Ocurrió un error: " + error.message);
-            guardarBtn.disabled = false;
-            guardarBtn.textContent = 'Guardar Módulo';
+                console.error("Error al crear el módulo:", error);
+                alert("Ocurrió un error: " + error.message);
+                guardarBtn.disabled = false;
+                guardarBtn.textContent = 'Guardar Módulo';
             }
         });
     </script>
