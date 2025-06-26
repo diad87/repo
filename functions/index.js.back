@@ -272,18 +272,3 @@ exports.stripeWebhook = onRequest(async (req, res) => {
 
   return res.status(200).send();
 });
-
-// Añade esta función al final de tu archivo index.js
-exports.verificarAdmin = onCall((data, context) => {
-  // Esta función solo comprueba la autenticación y el claim de admin.
-  if (!context.auth) {
-    throw new HttpsError("unauthenticated", "TEST: El contexto de autenticación está vacío.");
-  }
-  if (!context.auth.token.admin) {
-    throw new HttpsError("permission-denied", "TEST: El token no tiene el claim de admin.");
-  }
-
-  // Si todo va bien, devuelve un mensaje de éxito.
-  console.log(`Llamada de prueba exitosa por: ${context.auth.token.email}`);
-  return {status: "OK", message: `Hola admin ${context.auth.token.name}, tus permisos funcionan!`};
-});

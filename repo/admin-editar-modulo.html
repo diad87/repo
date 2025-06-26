@@ -10,31 +10,28 @@
         .font-coolvetica-heavy { font-family: 'Coolvetica Heavy', sans-serif; }
         label { display: block; margin-bottom: 0.5rem; color: #d1d5db; }
         input, textarea {
-            width: 100%;
-            background-color: #374151;
-            border: 1px solid #4b5563;
-            border-radius: 0.5rem;
-            padding: 0.75rem;
-            color: white;
+            width: 100%; background-color: #374151; border: 1px solid #4b5563;
+            border-radius: 0.5rem; padding: 0.75rem; color: white;
         }
         input:focus, textarea:focus {
-            outline: none;
-            border-color: #22d3ee;
+            outline: none; border-color: #22d3ee;
             box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.5);
         }
+        form { display: none; } /* Ocultar formulario por defecto */
     </style>
 </head>
 <body>
     <main class="container mx-auto px-4 lg:px-8 py-12 max-w-2xl">
-        <div class="text-sm text-gray-400 mb-4">
-            <a href="admin.html" class="hover:underline">Admin</a> &gt;
-            <a id="volver-a-modulos" href="#" class="hover:underline">Módulos</a> &gt;
-            <span class="font-semibold">Editar Módulo</span>
+        <div id="breadcrumb" class="text-sm text-gray-400 mb-4">
+             <!-- Breadcrumb se rellenará con JS -->
         </div>
 
         <h1 class="text-4xl font-coolvetica-heavy mb-8">Editar Módulo</h1>
 
+        <div id="loading-state" class="text-center text-gray-400">Cargando datos del módulo...</div>
+        
         <form id="modulo-form" class="space-y-6">
+             <!-- El contenido del formulario es el mismo que en crear-modulo -->
             <div>
                 <label for="nombre">Nombre del Módulo</label>
                 <input type="text" id="nombre" name="nombre" required>
@@ -45,109 +42,154 @@
             </div>
             <div>
                 <label for="orden">Orden de Aparición</label>
-                <input type="number" id="orden" name="orden" value="1" min="0" required>
+                <input type="number" id="orden" name="orden" min="0" required>
             </div>
 
             <fieldset class="border border-gray-700 p-4 rounded-lg space-y-4">
                 <legend class="px-2 text-lg font-semibold text-cyan-400">Fondo del Módulo</legend>
-
                 <div>
-                    <label for="color">1. Elige un color (o déjalo aleatorio)</label>
+                    <label for="color">1. Color de fondo</label>
                     <input type="color" id="color" name="color" class="h-10">
                 </div>
-
                 <div>
-                    <label for="imagen">2. (Opcional) O sube una imagen para reemplazar el color</label>
+                    <label for="imagen">2. (Opcional) Reemplazar con una imagen nueva</label>
                     <input type="file" id="imagen" name="imagen" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100">
-                    <img id="imagen-preview" src="" class="hidden w-32 h-auto mt-4 rounded-lg"/>
+                    <img id="imagen-preview" src="" class="w-32 h-auto mt-4 rounded-lg"/>
                 </div>
             </fieldset>
 
             <fieldset class="border border-gray-700 p-4 rounded-lg">
-                </fieldset>
+                <legend class="px-2 text-lg font-semibold text-cyan-400">Criterio de Dominio</legend>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                    <div>
+                        <label for="minPrecision">Precisión Mínima (%)</label>
+                        <input type="number" id="minPrecision" name="minPrecision" min="0" max="100" required>
+                    </div>
+                    <div>
+                        <label for="intentosRequeridos">Intentos Exitosos</label>
+                        <input type="number" id="intentosRequeridos" name="intentosRequeridos" min="1" required>
+                    </div>
+                    <div>
+                        <label for="ventanaIntentos">De los últimos (Intentos)</label>
+                        <input type="number" id="ventanaIntentos" name="ventanaIntentos" min="1" required>
+                    </div>
+                </div>
+            </fieldset>
 
             <div class="flex justify-end">
                 <button type="submit" id="guardar-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg">
-                    Guardar Módulo
+                    Actualizar Módulo
                 </button>
             </div>
         </form>
     </main>
 
     <script type="module">
-        import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+        import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAKnJXo7QLcU7jxkhar_-WeLJNHtxXG9Bk",
             authDomain: "kluppy-duelos.firebaseapp.com",
             projectId: "kluppy-duelos",
-            storageBucket: "kluppy-duelos.appspot.com",
+            storageBucket: "kluppy-duelos.firebasestorage.app",
             messagingSenderId: "221783859909",
             appId: "1:221783859909:web:504d021f4e50a11c8486ac",
             measurementId: "G-0839SL8VP6"
         };
-        const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+        
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
         const db = getFirestore(app);
         const storage = getStorage(app);
 
-        // --- Referencias al DOM ---
-        const form = document.getElementById('modulo-form');
-        const guardarBtn = document.getElementById('guardar-btn');
-        const colorInput = document.getElementById('color');
-        const imagenInput = document.getElementById('imagen');
-        const imagenPreview = document.getElementById('imagen-preview');
-        const tituloPagina = document.querySelector('h1');
-
-        // --- Lógica de la Página ---
         const params = new URLSearchParams(window.location.search);
         const cursoId = params.get('curso');
         const moduloId = params.get('modulo');
 
-        let imagenFile = null; // Variable para guardar la NUEVA imagen si el usuario elige una
+        const form = document.getElementById('modulo-form');
+        const loadingState = document.getElementById('loading-state');
+        const guardarBtn = document.getElementById('guardar-btn');
+        const imagenInput = document.getElementById('imagen');
+        const imagenPreview = document.getElementById('imagen-preview');
+        
+        let imagenFile = null;
+        let originalImageUrl = null;
 
-        if (!cursoId || !moduloId) {
-            alert("Error: Faltan IDs de curso o módulo.");
-            window.location.href = 'admin.html';
-        } else {
-            cargarDatosDelModulo();
-        }
-
-        // 1. Función para cargar los datos existentes en el formulario
-        async function cargarDatosDelModulo() {
-            const moduloRef = doc(db, "cursos", cursoId, "modulos", moduloId);
-            const docSnap = await getDoc(moduloRef);
-
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                tituloPagina.textContent = `Editar Módulo: ${data.nombre}`;
-                form.nombre.value = data.nombre || '';
-                form.descripcion.value = data.descripcion || '';
-                form.orden.value = data.orden || 0;
-                colorInput.value = data.color || '#f87171';
-                
-                // Si el módulo ya tiene una imagen, la mostramos
-                if (data.imageUrl) {
-                    imagenPreview.src = data.imageUrl;
-                    imagenPreview.classList.remove('hidden');
+        // --- LÓGICA DE AUTENTICACIÓN Y CARGA DE DATOS ---
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // El usuario está autenticado, AHORA podemos cargar los datos
+                if (!cursoId || !moduloId) {
+                    alert("URL inválida. Faltan IDs.");
+                    window.location.href = "admin.html";
+                    return;
                 }
-
-                // Rellenamos el criterio de dominio
-                if (data.criterioMastery) {
-                    form.minPrecision.value = data.criterioMastery.minPrecision || 98;
-                    form.intentosRequeridos.value = data.criterioMastery.intentosRequeridos || 8;
-                    form.ventanaIntentos.value = data.criterioMastery.ventanaIntentos || 10;
-                }
+                cargarDatosModulo();
             } else {
-                alert("El módulo que intentas editar no existe.");
-                window.location.href = `admin-modulos.html?curso=${cursoId}`;
+                // Si no hay usuario, redirigir al login
+                window.location.href = "/login.html";
+            }
+        });
+
+        async function cargarDatosModulo() {
+            try {
+                const moduloRef = doc(db, "cursos", cursoId, "modulos", moduloId);
+                const docSnap = await getDoc(moduloRef);
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    
+                    // Comprobar si el usuario es el propietario del módulo
+                    if (data.ownerUID !== auth.currentUser.uid) {
+                        alert("No tienes permiso para editar este módulo.");
+                        window.location.href = `admin-modulos.html?curso=${cursoId}`;
+                        return;
+                    }
+
+                    // Rellenar el formulario con los datos existentes
+                    form.nombre.value = data.nombre || '';
+                    form.descripcion.value = data.descripcion || '';
+                    form.orden.value = data.orden || 0;
+                    form.color.value = data.color || '#000000';
+                    
+                    if(data.criterioMastery){
+                        form.minPrecision.value = data.criterioMastery.minPrecision || 98;
+                        form.intentosRequeridos.value = data.criterioMastery.intentosRequeridos || 8;
+                        form.ventanaIntentos.value = data.criterioMastery.ventanaIntentos || 10;
+                    }
+
+                    originalImageUrl = data.imageUrl; // Guardamos la URL original
+                    if (originalImageUrl) {
+                        imagenPreview.src = originalImageUrl;
+                        imagenPreview.classList.remove('hidden');
+                    }
+                    
+                    document.getElementById('breadcrumb').innerHTML = `
+                        <a href="admin.html" class="hover:underline">Admin</a> &gt;
+                        <a href="admin-modulos.html?curso=${cursoId}" class="hover:underline">Módulos</a> &gt;
+                        <span class="font-semibold">${data.nombre}</span>`;
+                    
+                    // Mostrar formulario y ocultar "cargando"
+                    loadingState.style.display = 'none';
+                    form.style.display = 'block';
+
+                } else {
+                    alert("El módulo que intentas editar no existe.");
+                    window.location.href = `admin-modulos.html?curso=${cursoId}`;
+                }
+            } catch (error) {
+                console.error("Error al cargar el módulo:", error);
+                loadingState.textContent = "Error: No se pudieron cargar los datos. Revisa los permisos.";
+                // Este error saltará si las reglas de seguridad deniegan la lectura.
             }
         }
 
-        // 2. Lógica para previsualizar una NUEVA imagen si se selecciona
+        // --- PREVISUALIZACIÓN DE IMAGEN ---
         imagenInput.addEventListener('change', (e) => {
-            if (e.target.files[0]) {
+            if (e.target.files && e.target.files.length > 0) {
                 imagenFile = e.target.files[0];
                 const reader = new FileReader();
                 reader.onload = (event) => {
@@ -157,44 +199,52 @@
                 reader.readAsDataURL(imagenFile);
             }
         });
-
-        // 3. Lógica para GUARDAR las actualizaciones
+        
+        // --- LÓGICA DE GUARDADO ---
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             guardarBtn.disabled = true;
-            guardarBtn.textContent = 'Actualizando...';
+            guardarBtn.textContent = 'Actualizando…';
+
+            let newImageUrl = originalImageUrl;
 
             try {
-                const moduloRef = doc(db, "cursos", cursoId, "modulos", moduloId);
-                
-                // Obtenemos los datos actuales para no perder la URL de la imagen si no se cambia
-                const docActualSnap = await getDoc(moduloRef);
-                const datosActuales = docActualSnap.data();
-                let imageUrl = datosActuales.imageUrl || null;
-
-                // Si el usuario seleccionó una NUEVA imagen, la subimos y actualizamos la URL
+                // Si se ha seleccionado una nueva imagen
                 if (imagenFile) {
-                    // (Opcional: aquí iría la lógica para borrar la imagen antigua de Storage)
-                    const storageRef = ref(storage, `module-images/${cursoId}/${Date.now()}_${imagenFile.name}`);
-                    const uploadResult = await uploadBytes(storageRef, imagenFile);
-                    imageUrl = await getDownloadURL(uploadResult.ref);
+                    guardarBtn.textContent = 'Subiendo imagen...';
+                    // Opcional: Borrar la imagen antigua si existía para ahorrar espacio
+                    if (originalImageUrl) {
+                        try {
+                            const oldImageRef = ref(storage, originalImageUrl);
+                            await deleteObject(oldImageRef);
+                        } catch (deleteError) {
+                            console.warn("No se pudo borrar la imagen antigua:", deleteError);
+                        }
+                    }
+                    // Subir la nueva imagen
+                    const filePath = `cursos/${cursoId}/modulos/${Date.now()}_${imagenFile.name}`;
+                    const newImageRef = ref(storage, filePath);
+                    const uploadTask = await uploadBytes(newImageRef, imagenFile);
+                    newImageUrl = await getDownloadURL(uploadTask.ref);
                 }
 
-                // Creamos el objeto con los datos actualizados
+                // Objeto con todos los datos a actualizar
                 const datosActualizados = {
                     nombre: form.nombre.value,
                     descripcion: form.descripcion.value,
                     orden: Number(form.orden.value),
-                    color: colorInput.value,
-                    imageUrl: imageUrl, // Usamos la nueva URL o mantenemos la antigua
+                    color: form.color.value,
+                    imageUrl: newImageUrl, // URL nueva o la original si no se cambió
                     criterioMastery: {
                         minPrecision: Number(form.minPrecision.value),
                         intentosRequeridos: Number(form.intentosRequeridos.value),
-                        ventanaIntentos: Number(form.ventanaIntentos.value)
-                    }
+                        ventanaIntentos: Number(form.ventanaIntentos.value),
+                    },
+                    // No actualizamos el ownerUID ni createdAt
                 };
-                
-                // Actualizamos el documento en Firestore
+
+                guardarBtn.textContent = 'Guardando cambios...';
+                const moduloRef = doc(db, "cursos", cursoId, "modulos", moduloId);
                 await updateDoc(moduloRef, datosActualizados);
 
                 alert("¡Módulo actualizado con éxito!");
@@ -202,13 +252,11 @@
 
             } catch (error) {
                 console.error("Error actualizando el módulo:", error);
-                alert("No se pudo actualizar el módulo.");
+                alert("Ocurrió un error al actualizar: " + error.message);
                 guardarBtn.disabled = false;
                 guardarBtn.textContent = 'Actualizar Módulo';
             }
         });
-
-</script>
-
+    </script>
 </body>
 </html>

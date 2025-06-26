@@ -193,6 +193,28 @@
                 }
             }
         });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // 1. Obtiene el ID del curso desde la URL actual de la página de módulos
+            // (Ej: si la URL es admin-modulos.html?curso=ABCDE, cursoId será "ABCDE")
+            const params = new URLSearchParams(window.location.search);
+            const cursoId = params.get('curso');
+
+            // 2. Encuentra el botón o enlace para crear un nuevo módulo
+            const crearModuloBtn = document.getElementById('crear-nuevo-modulo-btn');
+
+            if (crearModuloBtn && cursoId) {
+                // 3. Asigna la URL correcta, incluyendo el ID del curso como parámetro
+                crearModuloBtn.href = `admin-crear-modulo.html?curso=${cursoId}`;
+            } else {
+                // Opcional: Oculta el botón si por alguna razón no hay un ID de curso.
+                // Esto previene que el admin haga clic en un enlace roto.
+                if (crearModuloBtn) {
+                    crearModuloBtn.style.display = 'none';
+                }
+                console.error("No se pudo configurar el enlace de 'Crear Módulo' porque falta el ID del curso en la URL de esta página.");
+            }
+        });
     </script>
 </body>
 </html>
