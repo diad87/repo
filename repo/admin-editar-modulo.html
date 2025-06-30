@@ -73,6 +73,10 @@
                         <label for="ventanaIntentos">De los últimos (Intentos)</label>
                         <input type="number" id="ventanaIntentos" name="ventanaIntentos" min="1" required>
                     </div>
+                    <div>
+                        <label for="keystrokesCalibracion" class="text-sm font-medium text-gray-300">Pulsaciones para Calibración</label>
+                        <input type="number" id="keystrokesCalibracion" value="2000" title="Número de pulsaciones antes de empezar a usar el perfil de ritmo personal. Antes de esto, se usará un umbral fijo." class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 mt-1 text-white">
+                    </div>
                 </div>
             </fieldset>
 
@@ -239,6 +243,8 @@
                         minPrecision: Number(form.minPrecision.value),
                         intentosRequeridos: Number(form.intentosRequeridos.value),
                         ventanaIntentos: Number(form.ventanaIntentos.value),
+                        umbralKeystrokesCalibracion: Number(document.getElementById('keystrokesCalibracion').value)
+
                     },
                     // No actualizamos el ownerUID ni createdAt
                 };

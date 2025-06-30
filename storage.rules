@@ -1,16 +1,14 @@
+
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Los archivos de los módulos se guardan en una ruta predecible
-    match /cursos/{cursoId}/modulos/{fileName} {
-      // Solo un usuario autenticado puede escribir (subir)
-      // Además, validamos que sea una imagen y que no supere los 5MB
-      allow write: if request.auth!= null
-                   && request.resource.size < 5 * 1024 * 1024
-                   && request.resource.contentType.matches('image/.*');
-      
-      // Cualquiera puede leer las imágenes de los módulos (necesario para mostrarlas)
-      allow read;
+    // Cualquiera puede LEER imágenes de los cursos
+    match /cursos/{cursoId}/{allPaths=**} {
+      allow read: if true; 
+    }
+    // SOLO los administradores pueden ESCRIBIR (subir, actualizar, borrar)
+    match /cursos/{cursoId}/{allPaths=**} {
+      allow write: if request.auth.token.admin == true;
     }
   }
 }

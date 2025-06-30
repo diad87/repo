@@ -39,12 +39,25 @@
 
     <main id="test-mecanografia" class="container mx-auto px-4 lg:px-8 py-12">
         <div id="sample-container">
+            <div id="loading-spinner" class="hidden"></div>
+            
             <p id="texto-muestra"></p>
         </div>
 
         <div id="progress-container">
             <div id="progress-bar"></div>
             <div id="progress-text">0%</div>
+        </div>
+
+        <div id="adaptive-info" class="hidden h-8 flex items-center justify-center space-x-6 text-sm text-gray-400 mb-4">
+            <div>
+                <span>Precisión Ventana: </span>
+                <span id="window-accuracy" class="font-bold text-lg text-white">--%</span>
+            </div>
+            <div>
+                <span>Objetivo: </span>
+                <span id="target-accuracy" class="font-bold text-lg text-cyan-400">--%</span>
+            </div>
         </div>
 
         <input type="text" id="entrada-usuario" onpaste="return false;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
@@ -127,6 +140,24 @@
     <button id="music-toggle-button" title="Activar/Desactivar Música" class="fixed bottom-4 right-4 z-50">
         🔇
     </button>
+
+    <div id="intervention-modal" class="fixed inset-0 z-[100] flex items-center justify-center transition-opacity duration-300 ease-in-out bg-gray-900 bg-opacity-70 backdrop-blur-sm opacity-0 pointer-events-none">
+        <div id="intervention-box" class="transform transition-all duration-300 ease-in-out scale-95 opacity-0 text-center p-8 bg-gray-800 rounded-xl shadow-2xl border border-gray-700 max-w-md">
+            <p class="text-5xl mb-4">✋</p>
+            <p id="intervention-message" class="text-xl font-semibold text-yellow-300"></p>
+        </div>
+    </div>
+
+    <div id="graceful-exit-modal" class="fixed inset-0 z-[100] flex items-center justify-center transition-opacity duration-300 ease-in-out bg-gray-900 bg-opacity-80 backdrop-blur-sm opacity-0 pointer-events-none">
+        <div id="graceful-exit-box" class="transform transition-all duration-300 ease-in-out scale-95 opacity-0 text-center p-8 bg-gray-800 rounded-xl shadow-2xl border border-gray-700 max-w-lg">
+            <p class="text-2xl font-bold text-white mb-2">¡Ánimo!</p>
+            <p id="graceful-exit-message" class="text-lg text-gray-300 mb-6">Parece que este patrón está costando un poco. ¿Qué quieres hacer?</p>
+            <div class="flex justify-center space-x-4">
+                <button id="exit-continue-btn" class="px-6 py-2 bg-gray-600 hover:bg-gray-500 rounded-lg font-semibold text-white">Seguir Intentando</button>
+                <button id="exit-postpone-btn" class="px-6 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg font-semibold text-white">Repasar Más Tarde</button>
+            </div>
+        </div>
+    </div>
 
     <script type="module"src="js/ejercicio.js"></script>
 </body>

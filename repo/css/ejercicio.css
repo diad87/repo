@@ -3,14 +3,14 @@
 
         @font-face {
             font-family: 'Coolvetica';
-            src: url('fonts/coolvetica-rg-webfont.woff2') format('woff2'),
-                url('fonts/coolvetica-rg-webfont.woff') format('woff');
+            src: url('../fonts/coolvetica-rg-webfont.woff2') format('woff2'),
+                url('../fonts/coolvetica-rg-webfont.woff') format('woff');
             font-weight: 400; font-style: normal;
         }
         @font-face {
             font-family: 'Coolvetica Heavy';
-            src: url('fonts/coolvetica-heavy-webfont.woff2') format('woff2'),
-                url('fonts/coolvetica-heavy-webfont.woff') format('woff');
+            src: url('../fonts/coolvetica-heavy-webfont.woff2') format('woff2'),
+                url('../fonts/coolvetica-heavy-webfont.woff') format('woff');
             font-weight: 900; font-style: normal;
         }
 
@@ -276,4 +276,45 @@
         /* 52px - 20px - 8px = 24px = 1.5rem */
         body.dark-theme #theme-toggle-indicator {
             transform: translateX(1.5rem); 
+        }
+
+        #intervention-modal.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        #intervention-modal.visible #intervention-box {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        #graceful-exit-modal.visible {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+        }
+
+        #graceful-exit-modal.visible #graceful-exit-box {
+            opacity: 1 !important;
+            transform: scale(1) !important;
+        }
+        
+        #loading-spinner {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            /* Centramos el spinner perfectamente en el contenedor */
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            border: 5px solid #4b5563; /* Color del borde gris oscuro */
+            border-top-color: #22d3ee; /* Color cian para la parte que gira */
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        /* Animación que hace girar el spinner */
+        @keyframes spin {
+            to {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
         }

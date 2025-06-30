@@ -287,3 +287,69 @@ exports.verificarAdmin = onCall((data, context) => {
   console.log(`Llamada de prueba exitosa por: ${context.auth.token.email}`);
   return {status: "OK", message: `Hola admin ${context.auth.token.name}, tus permisos funcionan!`};
 });
+
+/**
+ * Actualiza el perfil de ritmo de un usuario con las estadísticas de su última sesión.
+ * Es una función "callable" (v2), lo que significa que la podemos llamar directamente desde nuestro JavaScript.
+ */
+exports.updateTypingProfile = onCall({region: "us-central1"}, async (request) => {
+  // 1. Verificación de autenticación
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "La función solo puede ser llamada por usuarios autenticados.");
+  }
+
+  // 2. Validación de los datos recibidos
+  const {sessionIKIs} = request.data;
+  if (!Array.isArray(sessionIKIs) || sessionIKIs.length < 10) {
+    return {status: "success", message: "Sesión demasiado corta, no se actualiza el perfil."};
+  }
+
+  const uid = request.auth.uid;
+  // Usamos la instancia 'db' que ya inicializamos arriba.
+  const profileRef = db.collection("users").doc(uid).collection("stats").doc("typingProfile");
+
+  try {
+    const doc = await profileRef.get();
+
+    const sessionKeystrokes = sessionIKIs.length;
+    const sessionAverageIKI = sessionIKIs.reduce((a, b) => a + b, 0) / sessionKeystrokes;
+
+    const calculateStdDev = (arr, mean) => {
+      if (arr.length < 2) return 0;
+      const variance = arr.reduce((acc, val) => acc + (val - mean) ** 2, 0) / arr.length;
+      return Math.sqrt(variance);
+    };
+    const sessionStdDevIKI = calculateStdDev(sessionIKIs, sessionAverageIKI);
+
+    if (!doc.exists) {
+      console.log(`Creando perfil de ritmo para el usuario ${uid}`);
+      await profileRef.set({
+        averageIKI: sessionAverageIKI,
+        stdDevIKI: sessionStdDevIKI,
+        totalKeystrokes: sessionKeystrokes,
+        lastUpdated: FieldValue.serverTimestamp(), // Usamos FieldValue importado arriba
+      });
+    } else {
+      const oldProfile = doc.data();
+      const oldWeight = 0.95;
+      const newWeight = 0.05;
+
+      const newAverageIKI = (oldProfile.averageIKI * oldWeight) + (sessionAverageIKI * newWeight);
+      const newStdDevIKI = (oldProfile.stdDevIKI * oldWeight) + (sessionStdDevIKI * newWeight);
+      const newTotalKeystrokes = oldProfile.totalKeystrokes + sessionKeystrokes;
+
+      console.log(`Actualizando perfil de ritmo para el usuario ${uid}`);
+      await profileRef.update({
+        averageIKI: newAverageIKI,
+        stdDevIKI: newStdDevIKI,
+        totalKeystrokes: newTotalKeystrokes,
+        lastUpdated: FieldValue.serverTimestamp(),
+      });
+    }
+
+    return {status: "success", message: "Perfil actualizado correctamente."};
+  } catch (error) {
+    console.error("Error al actualizar el perfil de ritmo:", error);
+    throw new HttpsError("internal", "No se pudo actualizar el perfil de ritmo.");
+  }
+});
