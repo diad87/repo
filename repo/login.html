@@ -20,7 +20,8 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        
+        import { GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+
         const firebaseConfig = {
             apiKey: "AIzaSyAKnJXo7QLcU7jxkhar_-WeLJNHtxXG9Bk",
             authDomain: "kluppy-duelos.firebaseapp.com",
@@ -67,10 +68,24 @@
                 // ... (la lógica del login con contraseña no cambia)
             });
 
+            // Primero, asegúrate de importar estas dos herramientas al principio de tu script:
+
+            // Luego, el listener del botón:
             googleButton.addEventListener('click', () => {
-                // Ahora redirige a nuestra propia Cloud Function
-                const functionUrl = `https://us-central1-${firebaseConfig.projectId}.cloudfunctions.net/googleSignIn`;
-                window.location.href = functionUrl;
+                const provider = new GoogleAuthProvider(); // 1. Crea el proveedor de Google
+
+                // 2. Llama a la función de Firebase para mostrar el popup
+                signInWithPopup(auth, provider)
+                    .then((result) => {
+                        // El inicio de sesión fue exitoso.
+                        console.log("✅ Usuario ha iniciado sesión con Google:", result.user);
+                        // La lógica de onAuthStateChanged se encargará de redirigir a home.html automáticamente.
+                        // Si guardas datos del usuario en Firestore, este es un buen lugar para llamar a esa función.
+                    })
+                    .catch((error) => {
+                        // Manejo de errores (ej. el usuario cerró el popup)
+                        console.error("❌ Error durante el inicio de sesión con Google:", error);
+                    });
             });
         }
         

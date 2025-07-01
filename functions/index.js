@@ -1,4 +1,5 @@
 // --- Importaciones ---
+const {VertexAI} = require("@google-cloud/vertexai");
 const {onCall, onRequest, HttpsError} = require("firebase-functions/v2/https");
 const {defineString} = require("firebase-functions/params");
 const admin = require("firebase-admin");
@@ -351,5 +352,75 @@ exports.updateTypingProfile = onCall({region: "us-central1"}, async (request) =>
   } catch (error) {
     console.error("Error al actualizar el perfil de ritmo:", error);
     throw new HttpsError("internal", "No se pudo actualizar el perfil de ritmo.");
+  }
+});
+
+// AÑADE ESTA NUEVA FUNCIÓN AL FINAL DE index.js
+
+/**
+ * Genera un texto para un ejercicio de mecanografía usando la IA de Gemini.
+ */
+exports.generateExerciseText = onCall({region: "us-central1"}, async (request) => {
+  // 1. Verificación de autenticación
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Debes estar autenticado para generar textos.");
+  }
+
+  // 2. Validación de los datos recibidos
+  const config = request.data.config;
+  if (!config || !config.prompt) {
+    throw new HttpsError("invalid-argument", "Falta la configuración o el prompt para la IA.");
+  }
+
+  const {prompt, characterSet, longitudGenerada} = config;
+
+  // 3. Inicialización del cliente de IA
+  const vertexAI = new VertexAI({project: process.env.GCLOUD_PROJECT, location: "us-central1"});
+  const generativeModel = vertexAI.getGenerativeModel({
+    model: "gemini-2.0-flash-lite-001",
+  });
+
+  // 4. Construcción del prompt detallado para la IA
+  const fullPrompt = `
+      Eres un experto en crear ejercicios de mecanografía para hispanohablantes.
+      Tu única tarea es generar un texto en español para practicar.
+
+      REGLAS ESTRICTAS E INQUEBRANTABLES:
+      1. El texto generado debe contener ÚNICA Y EXCLUSIVAMENTE los siguientes caracteres, sin excepción: '${characterSet ? characterSet.join("") : "abcdefghijklmnñopqrstuvwxyz "}'. No puedes usar ningún otro carácter, letra, número o signo de puntuación que no esté en esta lista.
+      2. El texto debe tener una longitud aproximada de ${longitudGenerada || 150} caracteres.
+      3. El texto debe ser un único párrafo continuo, sin saltos de línea.
+      4. No incluyas comillas ni al principio ni al final del texto generado.
+
+      INSTRUCCIÓN GUÍA (úsala como inspiración para el tema, pero siempre respetando las reglas anteriores): "${prompt}"
+  `;
+
+  try {
+    // 5. Llamada a la API de Gemini
+    console.log("Enviando prompt a Gemini...");
+    const resp = await generativeModel.generateContent(fullPrompt);
+
+    // 6. Validación robusta de la respuesta
+    if (
+      !resp.response ||
+      !resp.response.candidates ||
+      resp.response.candidates.length === 0 ||
+      !resp.response.candidates[0].content ||
+      !resp.response.candidates[0].content.parts ||
+      resp.response.candidates[0].content.parts.length === 0
+    ) {
+      console.error("Respuesta inválida o vacía de Gemini:", JSON.stringify(resp.response));
+      throw new HttpsError("internal", "La IA no pudo generar una respuesta válida.");
+    }
+
+    const content = resp.response.candidates[0].content.parts[0].text;
+    console.log("Respuesta recibida de Gemini:", content);
+    return {exerciseText: content.trim()};
+  } catch (err) {
+    console.error("Error detallado en el servidor:", err);
+    if (err instanceof HttpsError) {
+      throw err;
+    } else {
+      throw new HttpsError("internal", `Error del servidor: ${err.message}`);
+    }
   }
 });

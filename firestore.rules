@@ -42,6 +42,12 @@ service cloud.firestore {
         // únicamente sus propias estadísticas.
         allow read, write: if request.auth.uid == userId;
       }
+
+      // Regla para la subcolección del progreso de las lecciones
+      match /progresoLecciones/{leccionId} {
+        // Un usuario solo puede leer y escribir el progreso de SUS PROPIAS lecciones.
+        allow read, write: if request.auth.uid == userId;
+      }
     }
 
   }

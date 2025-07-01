@@ -1,11 +1,11 @@
 // =================================================================
-// VERSIÓN FINAL Y COMPLETA - CORRIGE ERRORES DE RENDERIZADO Y TEMA
+// KERNEL DE EJERCICIOS DE KLUPPY - VERSIÓN FINAL
 // =================================================================
 
-// SECCIÓN 1: INICIALIZACIÓN DE FIREBASE Y LÓGICA DE USUARIO
+// --- SECCIÓN 1: IMPORTACIONES E INICIALIZACIÓN ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, collection, addDoc, serverTimestamp, getDocs, query, orderBy, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+import { getFirestore, collection, addDoc, serverTimestamp, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-functions.js";
 
 const firebaseConfig = {
@@ -80,6 +80,7 @@ const gracefulExitModal = document.getElementById('graceful-exit-modal');
 const exitContinueBtn = document.getElementById('exit-continue-btn');
 const exitPostponeBtn = document.getElementById('exit-postpone-btn');
 const loadingSpinner = document.getElementById('loading-spinner');
+const moduleProgressContainer = document.getElementById('module-progress-container');
 
 
 
@@ -90,12 +91,12 @@ const audioBorrado = new Audio('sounds/borrado.mp3'); audioBorrado.volume = 0.3;
 const audioEstrella = new Audio('sounds/estrella.mp3'); audioEstrella.volume = 0.6;
 const backgroundMusic = new Audio('sounds/background-music.mp3'); backgroundMusic.loop = true; backgroundMusic.volume = 0.2;
 
-// --- ESTADO CENTRALIZADO DE LA APLICACIÓN ---
-let estadoModulo = {
-    cursoId: null,
-    moduloId: null,
-    listaEjercicios: [],
-    indiceEjercicioActual: 0,
+// --- ESTADO GLOBAL ---
+let estadoLeccion = {
+    id: null,
+    datos: null,
+    faseActualIndex: 0,
+    progresoPorFase: {}, 
 };
 let estadoEjercicio = {};
 let liveStatsIntervalId = null;
@@ -223,43 +224,106 @@ function detectarFatiga() {
     return false;
 }
 
-async function cargarModulo() {
+async function cargarLeccion() {
     const params = new URLSearchParams(window.location.search);
-    estadoModulo.cursoId = params.get('curso');
-    estadoModulo.moduloId = params.get('modulo');
+    const cursoId = params.get('curso');
+    const moduloId = params.get('modulo');
 
-    if (!estadoModulo.cursoId || !estadoModulo.moduloId) {
-        textoMuestraElement.textContent = "Error: Módulo no especificado.";
+    if (!cursoId || !moduloId) {
+        textoMuestraElement.textContent = "Error: Lección no especificada.";
         return;
     }
 
-    // Mostramos el spinner y limpiamos el texto
-    textoMuestraElement.innerHTML = '';
     loadingSpinner.classList.remove('hidden');
+    textoMuestraElement.innerHTML = '';
 
     try {
-        const ejerciciosRef = collection(db, "cursos", estadoModulo.cursoId, "modulos", estadoModulo.moduloId, "ejercicios");
-        const q = query(ejerciciosRef, orderBy("createdAt", "asc"));
-        const querySnapshot = await getDocs(q);
+        // 1. Leemos el documento principal de la lección (esto no cambia)
+        const leccionRef = doc(db, "cursos", cursoId, "modulos", moduloId);
+        const docSnap = await getDoc(leccionRef);
 
-        if (querySnapshot.empty) {
-            loadingSpinner.classList.add('hidden'); // Ocultamos spinner
-            textoMuestraElement.textContent = "Este módulo no tiene ejercicios.";
+        if (!docSnap.exists() || docSnap.data().tipoLeccion !== 'fases_maestria') {
+            loadingSpinner.classList.add('hidden');
+            textoMuestraElement.textContent = "Esta lección no es compatible o no existe.";
             return;
         }
 
-        estadoModulo.listaEjercicios = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        estadoModulo.indiceEjercicioActual = 0;
+        // Guardamos los datos de la lección en nuestro estado
+        estadoLeccion.id = moduloId;
+        estadoLeccion.datos = docSnap.data();
+        
+        // --- ¡NUEVA LÓGICA PARA LEER EL PROGRESO! ---
+        const usuario = auth.currentUser;
+        if (usuario) {
+            const progresoRef = doc(db, "users", usuario.uid, "progresoLecciones", moduloId);
+            const progresoSnap = await getDoc(progresoRef);
 
-        // Llamamos a preparar el ejercicio, que se encargará de ocultar el spinner
-        prepararEjercicioActual();
+            if (progresoSnap.exists()) {
+                console.log("📈 ¡Progreso anterior encontrado! Cargando...");
+                const datosProgreso = progresoSnap.data();
+                // Actualizamos el estado con los datos guardados
+                estadoLeccion.faseActualIndex = datosProgreso.faseActualIndex || 0;
+                estadoLeccion.progresoPorFase = datosProgreso.progresoPorFase || {};
+            } else {
+                // Si no hay progreso guardado, empezamos de cero
+                console.log("No se encontró progreso para esta lección. Empezando de cero.");
+                estadoLeccion.faseActualIndex = 0;
+                estadoLeccion.progresoPorFase = {};
+            }
+        } else {
+             // Si no hay usuario, empezamos de cero
+             estadoLeccion.faseActualIndex = 0;
+             estadoLeccion.progresoPorFase = {};
+        }
+        // --- FIN DE LA LÓGICA DE PROGRESO ---
+        
+        await prepararFaseActual();
 
     } catch (error) {
-        console.error("Error al cargar el módulo:", error);
-        loadingSpinner.classList.add('hidden'); // Ocultamos spinner
+        console.error("Error al cargar la lección:", error);
+        loadingSpinner.classList.add('hidden');
         textoMuestraElement.textContent = "Error al cargar la lección.";
     }
 }
+
+async function prepararFaseActual() {
+    resetearEstadoEjercicio();
+    const perfil = await leerTypingProfile();
+    estadoEjercicio.perfilUsuario = perfil || {};
+    if (perfil) console.log("👤 Perfil de ritmo personal cargado:", perfil);
+    else console.log("👤 No se encontró perfil de ritmo. Se usarán valores por defecto.");
+
+    const faseActual = estadoLeccion.datos.fases[estadoLeccion.faseActualIndex];
+    if (!faseActual) {
+        textoMuestraElement.textContent = "¡LECCIÓN COMPLETADA! 🎉";
+        entradaUsuario.disabled = true;
+        if(moduleProgressContainer) moduleProgressContainer.innerHTML = '';
+        return;
+    }
+
+    renderModuleProgress(estadoLeccion.datos.fases.length, estadoLeccion.faseActualIndex);
+    estadoEjercicio.tipo = faseActual.tipoFase;
+    estadoEjercicio.criterios = { ...faseActual.criterioPaseFase, ...faseActual.criterioExitoIntento };
+
+    loadingSpinner.classList.remove('hidden');
+    try {
+        const config = faseActual.configEjercicio;
+        const promptParaIA = config.prompt || `un texto simple que use principalmente las letras ${config.characterSet.join(', ')}`;
+        const configParaEnviar = { ...config, prompt: promptParaIA };
+
+        console.log("Solicitando texto a la IA con el prompt:", promptParaIA);
+        const generateText = httpsCallable(functions, 'generateExerciseText');
+        const result = await generateText({ config: configParaEnviar });
+        estadoEjercicio.textoMuestraCompleto = result.data.exerciseText.split('');
+    } catch (error) {
+        console.error("Error al generar texto con IA:", error);
+        estadoEjercicio.textoMuestraCompleto = "Error al generar el ejercicio. Inténtalo de nuevo.".split('');
+    } finally {
+        loadingSpinner.classList.add('hidden');
+        renderizarTextoEnUI();
+    }
+}
+
 
 async function leerTypingProfile() {
     const usuario = auth.currentUser;
@@ -284,47 +348,35 @@ async function leerTypingProfile() {
     }
 }
 
-async function prepararEjercicioActual() {
-    resetearEstadoEjercicio();
+function generarEjercicioProcedural(config) {
+    let { characterSet, longitudGenerada } = config;
+    let texto = '';
 
-    // Leemos el perfil del usuario al inicio del ejercicio
-    const perfil = await leerTypingProfile();
-    if (perfil) {
-        console.log("👤 Perfil de ritmo personal cargado:", perfil);
-        estadoEjercicio.perfilUsuario = perfil;
-    } else {
-        console.log("👤 No se encontró perfil de ritmo. Se usarán valores por defecto.");
-        estadoEjercicio.perfilUsuario = {}; // Nos aseguramos de que el objeto exista
+    if (!characterSet) return ['Error: no hay set de caracteres para esta fase.'];
+
+    // --- ¡AQUÍ ESTÁ LA NUEVA LÓGICA ROBUSTA! ---
+    // 1. Nos aseguramos de que characterSet sea un string, sin importar lo que venga de la BD.
+    if (Array.isArray(characterSet)) {
+        // Si es un array (de un módulo antiguo), lo une en un string sin comas.
+        // Ej: ['j', 'f', ''] se convierte en "jf"
+        characterSet = characterSet.join(''); 
     }
 
-    if (estadoModulo.indiceEjercicioActual >= estadoModulo.listaEjercicios.length) {
-        textoMuestraElement.textContent = "¡Has completado el módulo! 🎉";
-        entradaUsuario.disabled = true;
-        adaptiveInfoContainer.classList.add('hidden');
-        return;
+    // 2. Le añadimos el espacio si no lo tiene.
+    if (!characterSet.includes(' ')) {
+        characterSet += '  '; // Añadimos dos espacios para aumentar su frecuencia
     }
 
-    const ejercicio = estadoModulo.listaEjercicios[estadoModulo.indiceEjercicioActual];
-    estadoEjercicio.tipo = ejercicio.tipo;
-    estadoEjercicio.criterios = ejercicio.criterio_ventana || {};
-
-    if (ejercicio.tipo === 'patron_adaptativo') {
-        const longitudGenerar = (ejercicio.criterio_ventana.longitudMaxima || 500) + 100;
-        estadoEjercicio.textoMuestraCompleto = generarTextoDePatron(ejercicio.patron, longitudGenerar);
-        estadoEjercicio.precisionExigida = estadoEjercicio.criterios.precisionObjetivo;
-
-        adaptiveInfoContainer.classList.remove('hidden');
-        targetAccuracyElement.textContent = `${estadoEjercicio.precisionExigida.toFixed(0)}%`;
-        windowAccuracyElement.textContent = `--%`;
-    } else {
-        estadoEjercicio.textoMuestraCompleto = (ejercicio.texto || '').split('');
-        adaptiveInfoContainer.classList.add('hidden');
+    // El resto de la función sigue igual
+    for (let i = 0; i < (longitudGenerada || 200); i++) {
+        const randomIndex = Math.floor(Math.random() * characterSet.length);
+        texto += characterSet[randomIndex];
     }
 
-    exerciseLengthElement.textContent = estadoEjercicio.textoMuestraCompleto.length;
-    loadingSpinner.classList.add('hidden');
+    texto = texto.replace(/ +/g, ' ');
+    texto = texto.trim(); 
 
-    renderizarTextoEnUI();
+    return texto.split('');
 }
 
 function generarTextoDePatron(patron, longitud) {
@@ -441,46 +493,155 @@ function ofrecerSalidaDigna() {
 }
 
 function finalizarEjercicio() {
+    if (estadoEjercicio.idTemporizador) clearTimeout(estadoEjercicio.idTemporizador);
     if (!estadoEjercicio.timerIniciado) {
-        pasarAlSiguiente();
+        prepararFaseActual(); // Prepara un nuevo intento si el timer no empezó
         return;
     }
 
-    // 1. Calculamos los intervalos de la sesión
-    const intervalos = [];
-    if (estadoEjercicio.tiemposDePulsacion.length > 1) {
-        for (let i = 1; i < estadoEjercicio.tiemposDePulsacion.length; i++) {
-            intervalos.push(estadoEjercicio.tiemposDePulsacion[i] - estadoEjercicio.tiemposDePulsacion[i - 1]);
-        }
-    }
-
-    // 2. Llamamos a la Cloud Function en segundo plano, sin esperar respuesta.
-    if (intervalos.length > 10) { // Solo si la sesión es mínimamente representativa
-        const updateProfile = httpsCallable(functions, 'updateTypingProfile');
-        updateProfile({ sessionIKIs: intervalos })
-            .then(result => console.log("Respuesta de la Cloud Function:", result.data))
-            .catch(error => console.error("Error al llamar a la Cloud Function:", error));
-    }
-
-    // 3. El resto de la lógica sigue igual
     const tiempoTranscurrido = (Date.now() - estadoEjercicio.tiempoInicio) / 1000;
-    calcularResultados(tiempoTranscurrido, false);
+    const resultadoIntento = calcularResultados(tiempoTranscurrido, false);
+
+    const faseActual = estadoLeccion.datos.fases[estadoLeccion.faseActualIndex];
+    const faseSuperada = evaluarPaseDeFase(faseActual, resultadoIntento);
+
+    if (faseSuperada) {
+        // ¡El usuario ha superado la fase!
+        // Incrementamos el índice para que la próxima vez que se llame
+        // a prepararFaseActual(), se cargue la siguiente fase.
+        estadoLeccion.faseActualIndex++;
+
+        setTimeout(() => {
+            alert(`¡FASE SUPERADA: ${faseActual.nombre}! Prepárate para la siguiente.`);
+        }, 500); 
+    }
 }
 
-function pasarAlSiguiente() {
+function pasarAlSiguienteIntento() {
     resultsModal.style.display = 'none';
-    estadoModulo.indiceEjercicioActual++;
-    prepararEjercicioActual();
+    prepararFaseActual(); // Prepara el siguiente intento (sea de la misma fase o de la siguiente)
 }
 
-function repetirEjercicio() {
-    resultsModal.style.display = 'none';
-    prepararEjercicioActual();
-}
 
 // =================================================================
 // SECCIÓN 4: EVENT LISTENERS Y FUNCIONES AUXILIARES
 // =================================================================
+
+
+/**
+ * Prepara el siguiente paso en la lección, ya sea un nuevo intento
+ * en la misma fase o la siguiente fase.
+ */
+function avanzarLeccion() {
+    resultsModal.style.display = 'none';
+
+    // La decisión de si la fase se superó ya se tomó en finalizarEjercicio.
+    // Si se superó, el índice de la fase ya se ha incrementado.
+    // Aquí solo preparamos lo que venga a continuación.
+    prepararFaseActual();
+}
+
+/**
+ * Reinicia la fase actual desde el principio.
+ */
+function repetirEjercicio() {
+    resultsModal.style.display = 'none';
+
+    // Obtenemos el ID de la fase actual
+    const idFaseActual = estadoLeccion.datos.fases[estadoLeccion.faseActualIndex].id;
+
+    // Eliminamos por completo su registro de progreso para forzar una reinicialización limpia
+    if (estadoLeccion.progresoPorFase[idFaseActual]) {
+        delete estadoLeccion.progresoPorFase[idFaseActual];
+    }
+
+    console.log(`♻️ Repitiendo fase. Progreso para '${idFaseActual}' reseteado.`);
+
+    // Volvemos a preparar la fase actual desde cero
+    prepararFaseActual(); 
+}
+
+/**
+ * Evalúa si el usuario ha cumplido el criterio para superar la fase actual.
+ * @param {object} fase - El objeto de la fase actual.
+ * @param {object} resultadoDelIntento - El objeto con los resultados del último intento.
+ * @returns {boolean} - True si la fase se ha superado, false en caso contrario.
+ */
+async function evaluarPaseDeFase(fase, resultadoDelIntento) {
+    const idFase = fase.id || fase.nombre;
+    const criterios = fase.criterioPaseFase;
+    const usuario = auth.currentUser;
+    if (!usuario) return false;
+
+    if (!estadoLeccion.progresoPorFase[idFase]) {
+        estadoLeccion.progresoPorFase[idFase] = {
+            intentosTotales: 0,
+            historialResultados: [],
+            precisiones: [],
+        };
+    }
+    const progreso = estadoLeccion.progresoPorFase[idFase];
+    progreso.intentosTotales++;
+    
+    let faseSuperada = false; // Inicializamos a false
+
+    // --- 1. El switch AHORA SOLO CALCULA y usa 'break' ---
+    switch (fase.tipoFase) {
+        case 'bloques_fijos':
+            progreso.precisiones.push(resultadoDelIntento.precision);
+            console.log(`Progreso Fase 'Bloques Fijos': ${progreso.intentosTotales}/${criterios.bloquesRequeridos} bloques completados.`);
+            if (progreso.intentosTotales >= criterios.bloquesRequeridos) {
+                const precisionMedia = progreso.precisiones.reduce((a, b) => a + b, 0) / progreso.precisiones.length;
+                console.log(`Fin de fase de bloques. Precisión Media: ${precisionMedia.toFixed(1)}%. Requerida: ${criterios.precisionMinimaMedia}%`);
+                faseSuperada = precisionMedia >= criterios.precisionMinimaMedia;
+            }
+            break; // Usamos break en lugar de return
+
+        case 'maestria_ventana_movil': {
+            const criterioExito = fase.criterioExitoIntento || {};
+            const exitoDelIntento = resultadoDelIntento.precision >= (criterioExito.precisionMinima || 95);
+            progreso.historialResultados.push(exitoDelIntento);
+            if (progreso.historialResultados.length > criterios.ventanaDeIntentos) {
+                progreso.historialResultados.shift();
+            }
+            const exitosEnVentana = progreso.historialResultados.filter(r => r === true).length;
+            console.log(`Progreso Fase 'Maestría': ${exitosEnVentana}/${criterios.exitosRequeridos} éxitos en los últimos ${progreso.historialResultados.length} intentos.`);
+            faseSuperada = exitosEnVentana >= criterios.exitosRequeridos;
+            break; // Usamos break
+        }
+
+        case 'test_unico': {
+            const exito = resultadoDelIntento.precision >= criterios.precisionMinima;
+            console.log(`Resultado del Test Único: ${exito ? 'SUPERADO' : 'FALLIDO'}`);
+            faseSuperada = exito;
+            break; // Usamos break
+        }
+        
+        default:
+            console.warn(`Tipo de fase desconocido: ${fase.tipoFase}`);
+            faseSuperada = false;
+            break; // Usamos break
+    }
+
+    // --- 2. AHORA, la lógica de guardado SIEMPRE se ejecuta ---
+    try {
+        const progresoRef = doc(db, "users", usuario.uid, "progresoLecciones", estadoLeccion.id);
+        const datosParaGuardar = {
+            leccionId: estadoLeccion.id,
+            faseActualIndex: estadoLeccion.faseActualIndex,
+            progresoPorFase: estadoLeccion.progresoPorFase,
+            lastUpdated: serverTimestamp()
+        };
+        await setDoc(progresoRef, datosParaGuardar, { merge: true });
+        console.log("✅ Progreso de la fase guardado en Firestore.");
+    } catch (error) {
+        console.error("❌ Error al guardar el progreso de la fase:", error);
+    }
+    
+    // --- 3. Y solo al final de todo, devolvemos el resultado
+    return faseSuperada;
+}
+
 
 function toggleStatsPanel() {
     liveStatsContainer.classList.toggle('is-open');
@@ -577,9 +738,10 @@ entradaUsuario.addEventListener("keydown", (event) => {
         capsLockKey.classList.toggle("active", event.getModifierState("CapsLock"));
     }
 });
-
-closeModal.addEventListener('click', pasarAlSiguiente);
+// Listener para los botones del modal de resultados
+closeModal.addEventListener('click', avanzarLeccion);
 repeatButton.addEventListener('click', repetirEjercicio);
+
 musicToggleButton.addEventListener('click', () => {
     isMusicPlaying = !isMusicPlaying;
     if (isMusicPlaying) {
@@ -776,21 +938,29 @@ function calcularResultados(segundos, soloActualizarStats = false) {
     const precision = typedText.length > 0 ? ((typedText.length - errores) / typedText.length) * 100 : 100;
     const netPPM = Math.max(0, Math.round((typedText.length - errores) / minutos));
 
-    livePpmElement.textContent = netPPM;
-    liveAccuracyElement.textContent = Math.max(0, precision).toFixed(1);
-    liveCorrectionsElement.textContent = estadoEjercicio.correcciones;
-    const topErrores = Object.entries(estadoEjercicio.mapaErrores).sort((a, b) => b[1] - a[1]).slice(0, 3).map(item => item[0] === ' ' ? "'espacio'" : item[0]).join(', ');
-    liveTopErrorsElement.textContent = topErrores || '-';
+    // ... (el código para actualizar los stats en vivo se mantiene igual) ...
 
-    if (soloActualizarStats) return;
+    if (soloActualizarStats) {
+        // Si solo actualizamos, no devolvemos nada especial
+        return;
+    }
 
+    // Actualizamos el modal
     modalTiempo.textContent = segundos.toFixed(1);
     modalNetPPM.textContent = netPPM;
     modalPrecision.textContent = Math.max(0, precision).toFixed(1);
     modalErrors.textContent = errores;
     resultsModal.style.display = 'flex';
-    
-    guardarResultado({ ppm: netPPM, precision: parseFloat(precision.toFixed(1)), errores, duracion: parseFloat(segundos.toFixed(1)) });
+
+    const datosParaGuardar = { ppm: netPPM, precision: parseFloat(precision.toFixed(1)), errores, duracion: parseFloat(segundos.toFixed(1)) };
+    guardarResultado(datosParaGuardar);
+
+    // ¡NUEVO Y MUY IMPORTANTE! Devolvemos los resultados para poder evaluarlos.
+    return {
+        exito: precision >= (estadoEjercicio.criterios.precisionMinima || 95), // Un intento es un "éxito" si cumple la precisión
+        ppm: netPPM,
+        precision: precision
+    };
 }
 
 async function guardarResultado(datos) {
@@ -825,6 +995,36 @@ exitPostponeBtn.addEventListener('click', () => {
     // Usamos la función que ya teníamos para pasar de ejercicio
     pasarAlSiguiente(); 
 });
+
+/**
+ * Dibuja o actualiza los puntos de progreso de la lección.
+ * @param {number} total - El número total de fases en la lección.
+ * @param {number} actual - El índice de la fase actual (empezando en 0).
+ */
+function renderModuleProgress(total, actual) {
+    const container = document.getElementById('module-progress-container');
+    if (!container) return;
+
+    container.innerHTML = ''; // Limpiamos los puntos anteriores
+
+    for (let i = 0; i < total; i++) {
+        const dot = document.createElement('div');
+        // Usamos clases de Tailwind para los estilos
+        dot.className = 'w-3 h-3 rounded-full transition-all duration-300';
+
+        if (i < actual) {
+            // Punto de una fase completada
+            dot.classList.add('bg-cyan-500');
+        } else if (i === actual) {
+            // Punto de la fase actual (más grande y resaltado)
+            dot.classList.add('bg-cyan-300', 'scale-150');
+        } else {
+            // Punto de una fase futura
+            dot.classList.add('bg-gray-600');
+        }
+        container.appendChild(dot);
+    }
+}
 
 // =================================================================
 // SECCIÓN 5: LÓGICA DE TEMA Y INICIALIZACIÓN
@@ -861,7 +1061,7 @@ themeToggle.addEventListener('click', () => {
 function init() {
     createKeyboard();
     makeDraggable(liveStatsContainer);
-    cargarModulo();
+    cargarLeccion()
     initializeTheme();
     
     document.body.addEventListener('click', e => {

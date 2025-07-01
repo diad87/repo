@@ -3,211 +3,287 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crear Nuevo Módulo - Admin</title>
+    <title>Crear Nueva Lección - Admin</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: 'Coolvetica', sans-serif; }
-    .font-coolvetica-heavy { font-family: 'Coolvetica Heavy', sans-serif; }
-        label { display: block; margin-bottom: 0.5rem; color: #d1d5db; }
-        input, textarea {
-            width: 100%;
-            background-color: #374151;
-            border: 1px solid #4b5563;
-            border-radius: 0.5rem;
-            padding: 0.75rem;
-            color: white;
+        body { font-family: 'Coolvetica', sans-serif; background-color: #111827; color: white; }
+        label { display: block; margin-bottom: 0.5rem; color: #d1d5db; font-size: 0.875rem; font-weight: 500; }
+        input, textarea, select {
+            width: 100%; background-color: #374151; border: 1px solid #4b5563;
+            border-radius: 0.5rem; padding: 0.75rem; color: white;
         }
-        input:focus, textarea:focus {
-            outline: none;
-            border-color: #22d3ee;
+        input:focus, textarea:focus, select:focus {
+            outline: none; border-color: #22d3ee;
             box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.5);
         }
+        .fase-card { transition: all 0.3s ease-in-out; }
     </style>
 </head>
-<body class="bg-gray-900 text-white">
+<body>
+    <header class="bg-gray-800/80 backdrop-blur-sm sticky top-0 z-50">
+        </header>
 
-    <main class="container mx-auto px-4 lg:px-8 py-12 max-w-2xl">
-        <div class="text-sm text-gray-400 mb-4">
-            <a href="admin.html" class="hover:underline">Admin</a> &gt;
-            <a id="volver-a-modulos" href="#" class="hover:underline">Módulos</a> &gt;
-            <span class="font-semibold">Crear Nuevo</span>
-        </div>
+    <main class="container mx-auto px-4 lg:px-8 py-12 max-w-4xl">
+        <h1 class="text-4xl font-bold mb-8">Crear Nueva Lección</h1>
 
-        <h1 class="text-4xl font-coolvetica-heavy mb-8">Crear Nuevo Módulo</h1>
-
-        <form id="modulo-form" class="space-y-6" style="display: none;">
-            <div>
-                <label for="nombre">Nombre del Módulo</label>
-                <input type="text" id="nombre" name="nombre" required>
-            </div>
-            <div>
-                <label for="descripcion">Descripción</label>
-                <textarea id="descripcion" name="descripcion" rows="3"></textarea>
-            </div>
-            <div>
-                <label for="orden">Orden de Aparición</label>
-                <input type="number" id="orden" name="orden" value="1" min="0" required>
-            </div>
-
-            <fieldset class="border border-gray-700 p-4 rounded-lg space-y-4">
-                <legend class="px-2 text-lg font-semibold text-cyan-400">Fondo del Módulo</legend>
-
-                <div>
-                    <label for="color">1. Elige un color (o déjalo aleatorio)</label>
-                    <input type="color" id="color" name="color" class="h-10">
-                </div>
-
-                <div>
-                    <label for="imagen">2. (Opcional) O sube una imagen para reemplazar el color</label>
-                    <input type="file" id="imagen" name="imagen" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-cyan-50 file:text-cyan-700 hover:file:bg-cyan-100">
-                    <img id="imagen-preview" src="" class="hidden w-32 h-auto mt-4 rounded-lg"/>
-                </div>
-            </fieldset>
-
-            <fieldset class="border border-gray-700 p-4 rounded-lg">
-                <legend class="px-2 text-lg font-semibold text-cyan-400">Criterio de Dominio</legend>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+        <form id="crear-modulo-form" class="space-y-6">
+            <div class="bg-gray-800 p-6 rounded-lg">
+                <h2 class="text-2xl font-bold mb-4">Datos Generales</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label for="minPrecision">Precisión Mínima (%)</label>
-                        <input type="number" id="minPrecision" name="minPrecision" value="98" min="0" max="100" required>
+                        <label for="nombre-modulo">Nombre de la Lección</label>
+                        <input type="text" id="nombre-modulo" required>
                     </div>
                     <div>
-                        <label for="intentosRequeridos">Intentos Exitosos</label>
-                        <input type="number" id="intentosRequeridos" name="intentosRequeridos" value="8" min="1" required>
-                    </div>
-                    <div>
-                        <label for="ventanaIntentos">De los últimos (Intentos)</label>
-                        <input type="number" id="ventanaIntentos" name="ventanaIntentos" value="10" min="1" required>
-                    </div>
-                    <div>
-                        <label for="keystrokesCalibracion" class="text-sm font-medium text-gray-300">Pulsaciones para Calibración</label>
-                        <input type="number" id="keystrokesCalibracion" value="2000" title="Número de pulsaciones antes de empezar a usar el perfil de ritmo personal. Antes de esto, se usará un umbral fijo." class="w-full bg-gray-700 border border-gray-600 rounded-md p-2 mt-1 text-white">
+                        <label for="orden-modulo">Orden de Aparición</label>
+                        <input type="number" id="orden-modulo" value="0">
                     </div>
                 </div>
-            </fieldset>
+                <div class="mt-4">
+                    <label for="descripcion-modulo">Descripción Corta</label>
+                    <input type="text" id="descripcion-modulo">
+                </div>
+                <div class="mt-4">
+                    <label for="tipo-leccion">Tipo de Lección</label>
+                    <select id="tipo-leccion">
+                        <option value="fases_maestria" selected>Lección con Fases de Maestría</option>
+                        <option value="lista_fija_legacy">Lista Fija de Ejercicios (Antiguo)</option>
+                    </select>
+                </div>
+            </div>
 
-            <div class="flex justify-end">
-                <button type="submit" id="guardar-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg">
-                    Guardar Módulo
-                </button>
+            <div id="fases-wrapper" class="space-y-4 rounded-lg border border-gray-700 p-6">
+                <h2 class="text-2xl font-bold text-cyan-400">Fases de la Lección</h2>
+                <div id="fases-container" class="space-y-4">
+                    </div>
+                <button type="button" id="add-fase-btn" class="mt-4 px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded-md font-semibold">+ Añadir Nueva Fase</button>
+            </div>
+
+            <div class="text-right border-t border-gray-700 pt-6">
+                <button type="submit" id="guardar-modulo-btn" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-6 rounded-lg">Guardar Lección Completa</button>
             </div>
         </form>
     </main>
 
+    <template id="fase-template">
+        <div class="fase-card bg-gray-900 p-4 rounded-md border border-gray-600">
+            <div class="flex justify-between items-center mb-4">
+                <h4 class="text-lg font-semibold text-white">Nueva Fase</h4>
+                <button type="button" class="remove-fase-btn text-red-500 hover:text-red-400 font-semibold">Eliminar</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label>Nombre de la Fase</label>
+                    <input type="text" class="fase-nombre" placeholder="Ej: Fase de Aprendizaje ★">
+                </div>
+                <div>
+                    <label>Tipo de Fase</label>
+                    <select class="fase-tipo">
+                        <option value="bloques_fijos">Bloques Fijos</option>
+                        <option value="maestria_ventana_movil" selected>Maestría (Ventana Móvil)</option>
+                        <option value="test_unico">Test Único</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="criterios-container mt-4 space-y-4"></div>
+
+            <fieldset class="mt-4 border-t border-gray-700 pt-4">
+                <legend class="text-sm font-semibold text-gray-400 px-2">Configuración de Ejercicios</legend>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                    
+                    <div>
+                        <label>Duración del Bloque (s)</label>
+                        <input type="number" class="fase-duracion" value="45">
+                    </div>
+
+                    <div class="md:col-span-2"> 
+                        <label>Set de Caracteres (Selecciona los permitidos)</label>
+                        <div class="character-set-container bg-gray-900 p-2 rounded-md grid grid-cols-12 gap-1 text-center text-xs">
+                            <label class="p-1 border border-gray-700 rounded"><input type="checkbox" class="char-checkbox" data-char="q"> q</label>
+                            <label class="p-1 border border-gray-700 rounded"><input type="checkbox" class="char-checkbox" data-char="w"> w</label>
+                            <label class="p-1 border border-gray-700 rounded"><input type="checkbox" class="char-checkbox" data-char="e"> e</label>
+                            <label class="p-1 border border-gray-700 rounded"><input type="checkbox" class="char-checkbox" data-char="r"> r</label>
+                            <label class="p-1 border border-gray-700 rounded"><input type="checkbox" class="char-checkbox" data-char="t"> t</label>
+                            <label class="p-1 border border-gray-700 rounded"><input type="checkbox" class="char-checkbox" data-char="y"> y</label>
+                            <label class="p-1 border border-gray-700 rounded"><input type="checkbox" class="char-checkbox" data-char="u"> u</label>
+                            <label class="p-1 border border-gray-700 rounded"><input type="checkbox" class="char-checkbox" data-char="i"> i</label>
+                            <label class="p-1 border border-gray-700 rounded"><input type="checkbox" class="char-checkbox" data-char="o"> o</label>
+                            <label class="p-1 border border-gray-700 rounded"><input type="checkbox" class="char-checkbox" data-char="p"> p</label>
+                            <label class="p-1 border border-gray-700 rounded col-span-2"><input type="checkbox" class="char-checkbox" data-char=" " checked> Espacio</label>
+                            
+                            <label class="p-1 border border-gray-700 rounded"><input type="checkbox" class="char-checkbox" data-char="a"> a</label>
+                            <label class="p-1 border border-gray-700 rounded"><input type="checkbox" class="char-checkbox" data-char="s"> s</label>
+                            <label class="p-1 border border-gray-700 rounded"><input type="checkbox" class="char-checkbox" data-char="d"> d</label>
+                            <label class="p-1 border border-gray-700 rounded"><input type="checkbox" class="char-checkbox" data-char="f" checked> f</label>
+                            <label class="p-1 border border-gray-700 rounded"><input type="checkbox" class="char-checkbox" data-char="g"> g</label>
+                            <label class="p-1 border border-gray-700 rounded"><input type="checkbox" class="char-checkbox" data-char="h"> h</label>
+                            <label class="p-1 border border-gray-700 rounded"><input type="checkbox" class="char-checkbox" data-char="j" checked> j</label>
+                            <label class="p-1 border border-gray-700 rounded"><input type="checkbox" class="char-checkbox" data-char="k"> k</label>
+                            <label class="p-1 border border-gray-700 rounded"><input type="checkbox" class="char-checkbox" data-char="l"> l</label>
+                            <label class="p-1 border border-gray-700 rounded"><input type="checkbox" class="char-checkbox" data-char="ñ"> ñ</label>
+                        </div>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label>Prompt Guía para la IA</label>
+                        <textarea class="fase-prompt" rows="2" placeholder="Ej: Palabras cortas sobre animales del bosque."></textarea>
+                    </div>
+
+                </div>
+            </fieldset>
+        </div>
+    </template>
+
     <script type="module">
         import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-storage.js";
+        import { getAuth } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // --- Configuración e Inicialización de Firebase ---
         const firebaseConfig = {
             apiKey: "AIzaSyAKnJXo7QLcU7jxkhar_-WeLJNHtxXG9Bk",
             authDomain: "kluppy-duelos.firebaseapp.com",
             projectId: "kluppy-duelos",
-            storageBucket: "kluppy-duelos.firebasestorage.app",
+            storageBucket: "kluppy-duelos.appspot.com",
             messagingSenderId: "221783859909",
             appId: "1:221783859909:web:504d021f4e50a11c8486ac",
             measurementId: "G-0839SL8VP6"
         };
-        
         const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
         const auth = getAuth(app);
-        const storage = getStorage(app);
         const db = getFirestore(app);
 
         // --- Referencias al DOM ---
-        const form = document.getElementById('modulo-form');
-        const guardarBtn = document.getElementById('guardar-btn');
-        const colorInput = document.getElementById('color');
-        const imagenInput = document.getElementById('imagen');
-        const imagenPreview = document.getElementById('imagen-preview');
-        
-        // --- Lógica de la Página ---
-        const params = new URLSearchParams(window.location.search);
-        const cursoId = params.get('curso');
-        let imagenFile = null;
+        const form = document.getElementById('crear-modulo-form');
+        const tipoLeccionSelect = document.getElementById('tipo-leccion');
+        const fasesWrapper = document.getElementById('fases-wrapper');
+        const fasesContainer = document.getElementById('fases-container');
+        const addFaseBtn = document.getElementById('add-fase-btn');
+        const faseTemplate = document.getElementById('fase-template');
 
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                form.style.display = "block";
-            } else {
-                window.location.href = "/login.html";
-            }
+        // --- Lógica para mostrar/ocultar el gestor de fases ---
+        tipoLeccionSelect.addEventListener('change', () => {
+            fasesWrapper.style.display = tipoLeccionSelect.value === 'fases_maestria' ? 'block' : 'none';
+        });
+        tipoLeccionSelect.dispatchEvent(new Event('change'));
+
+        // --- Lógica para añadir una nueva fase ---
+        addFaseBtn.addEventListener('click', () => {
+            const faseClone = faseTemplate.content.cloneNode(true);
+            const faseCard = faseClone.querySelector('.fase-card');
+            fasesContainer.appendChild(faseCard);
+            
+            faseCard.querySelector('.remove-fase-btn').addEventListener('click', () => faseCard.remove());
+            const faseTipoSelect = faseCard.querySelector('.fase-tipo');
+            faseTipoSelect.addEventListener('change', (e) => renderCriterios(e.target));
+            renderCriterios(faseTipoSelect);
         });
 
-        const randomColor = () => "#" + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
-        colorInput.value = randomColor();
+        function renderCriterios(selectElement) {
+            const tipo = selectElement.value;
+            const container = selectElement.closest('.fase-card').querySelector('.criterios-container');
+            container.innerHTML = ''; 
 
-        imagenInput.addEventListener('change', (e) => {
-            if (e.target.files && e.target.files.length > 0) {
-                // LA CORRECCIÓN DEFINITIVA ESTÁ AQUÍ:
-                imagenFile = e.target.files[0]; 
-                
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    imagenPreview.src = event.target.result;
-                    imagenPreview.classList.remove('hidden');
-                };
-                reader.readAsDataURL(imagenFile);
-            } else {
-                imagenFile = null;
+            let html = '';
+            if (tipo === 'bloques_fijos') {
+                html = `<fieldset class="border-t border-gray-700 pt-4"><legend class="text-sm font-semibold px-2">Criterio de Pase</legend><div class="grid md:grid-cols-2 gap-4 mt-2">
+                        <div><label>Bloques Requeridos</label><input type="number" class="criterio-bloquesRequeridos" value="6"></div>
+                        <div><label>Precisión Media Mínima (%)</label><input type="number" class="criterio-precisionMinimaMedia" value="90"></div>
+                        </div></fieldset>`;
+            } else if (tipo === 'maestria_ventana_movil') {
+                html = `<fieldset class="border-t border-gray-700 pt-4"><legend class="text-sm font-semibold px-2">Criterio Pase de Fase</legend><div class="grid md:grid-cols-2 gap-4 mt-2">
+                        <div><label>Éxitos Requeridos</label><input type="number" class="criterio-exitosRequeridos" value="5"></div>
+                        <div><label>En los últimos (Ventana)</label><input type="number" class="criterio-ventanaDeIntentos" value="7"></div>
+                        </div></fieldset>
+                        <fieldset class="border-t border-gray-700 pt-4"><legend class="text-sm font-semibold px-2">Criterio Éxito por Intento</legend><div class="grid md:grid-cols-2 gap-4 mt-2">
+                        <div><label>Precisión Mínima (%)</label><input type="number" class="criterio-precisionMinima" value="97"></div>
+                        <div><label>Velocidad vs Pico Mínima (%)</label><input type="number" class="criterio-velocidadPicoMinima" value="90"></div>
+                        </div></fieldset>`;
+            } else if (tipo === 'test_unico') {
+                html = `<fieldset class="border-t border-gray-700 pt-4"><legend class="text-sm font-semibold px-2">Criterio de Pase</legend><div class="grid md:grid-cols-2 gap-4 mt-2">
+                        <div><label>Precisión Mínima (%)</label><input type="number" class="criterio-precisionMinima" value="97"></div>
+                        </div></fieldset>`;
             }
-        });
-        
-        // --- Lógica de Guardado ---
+            container.innerHTML = html;
+        }
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const guardarBtn = document.getElementById('guardar-modulo-btn');
             guardarBtn.disabled = true;
-            guardarBtn.textContent = 'Guardando…';
+            guardarBtn.textContent = 'Guardando...';
 
             const user = auth.currentUser;
-            if (!user || !cursoId) {
-                alert("Error: Sesión no válida o falta el ID del curso.");
-                guardarBtn.disabled = false;
-                guardarBtn.textContent = 'Guardar Módulo';
+            if (!user) {
+                alert("Error: Debes estar autenticado.");
+                guardarBtn.disabled = false; guardarBtn.textContent = 'Guardar Lección Completa';
                 return;
             }
 
-            let imageUrl = null;
+            const cursoId = new URLSearchParams(window.location.search).get('curso');
+            if (!cursoId) {
+                alert("Error: No se encontró el ID del curso.");
+                guardarBtn.disabled = false; guardarBtn.textContent = 'Guardar Lección Completa';
+                return;
+            }
+
+            const leccionData = {
+                nombre: document.getElementById('nombre-modulo').value,
+                descripcion: document.getElementById('descripcion-modulo').value,
+                orden: Number(document.getElementById('orden-modulo').value) || 0,
+                tipoLeccion: tipoLeccionSelect.value,
+                createdAt: serverTimestamp(),
+                ownerUID: user.uid,
+                fases: []
+            };
+
+            if (leccionData.tipoLeccion === 'fases_maestria') {
+                const faseCards = fasesContainer.querySelectorAll('.fase-card');
+                faseCards.forEach((card, index) => {
+                    const tipoFase = card.querySelector('.fase-tipo').value;
+                    const faseObj = {
+                        id: `${tipoFase}_${index}`,
+                        nombre: card.querySelector('.fase-nombre').value,
+                        tipoFase: tipoFase,
+                        criterioPaseFase: {},
+                        configEjercicio: {
+                            duracionBloque: Number(card.querySelector('.fase-duracion').value),
+                            prompt: card.querySelector('.fase-prompt').value, // <--- Esta línea es crucial
+                            characterSet: Array.from(card.querySelectorAll('.char-checkbox:checked')).map(cb => cb.dataset.char),
+                        }
+                    };
+                    
+                    card.querySelectorAll('.criterios-container input').forEach(input => {
+                        const key = input.className.split('-')[1];
+                        faseObj.criterioPaseFase[key] = Number(input.value);
+                    });
+                    
+                    // En maestría, los criterios de éxito por intento son un objeto separado
+                    if (tipoFase === 'maestria_ventana_movil') {
+                        faseObj.criterioExitoIntento = {
+                           precisionMinima: faseObj.criterioPaseFase.precisionMinima,
+                           velocidadPicoMinima: faseObj.criterioPaseFase.velocidadPicoMinima
+                        }
+                        // Los borramos del objeto principal para no duplicar
+                        delete faseObj.criterioPaseFase.precisionMinima;
+                        delete faseObj.criterioPaseFase.velocidadPicoMinima;
+                    }
+
+                    leccionData.fases.push(faseObj);
+                });
+            }
 
             try {
-                if (imagenFile) {
-                    guardarBtn.textContent = 'Subiendo imagen...';
-                    const filePath = `cursos/${cursoId}/modulos/${Date.now()}_${imagenFile.name}`;
-                    const storageRef = ref(storage, filePath);
-                    const uploadTask = await uploadBytesResumable(storageRef, imagenFile);
-                    imageUrl = await getDownloadURL(uploadTask.ref);
-                }
-
-                guardarBtn.textContent = 'Registrando módulo...';
-                const moduloData = {
-                    ownerUID: user.uid,
-                    cursoId: cursoId,
-                    nombre: form.nombre.value,
-                    descripcion: form.descripcion.value,
-                    orden: Number(form.orden.value),
-                    color: colorInput.value,
-                    imageUrl: imageUrl,
-                    criterioMastery: {
-                        minPrecision: Number(form.minPrecision.value),
-                        intentosRequeridos: Number(form.intentosRequeridos.value),
-                        ventanaIntentos: Number(form.ventanaIntentos.value),
-                        umbralKeystrokesCalibracion: Number(document.getElementById('keystrokesCalibracion').value)
-                    },
-                    createdAt: serverTimestamp()
-                };
-
-                await addDoc(collection(db, "cursos", cursoId, "modulos"), moduloData);
-
-                alert("¡Módulo creado con éxito!");
+                console.log("Guardando Lección en Firestore:", leccionData);
+                const modulosRef = collection(db, "cursos", cursoId, "modulos");
+                await addDoc(modulosRef, leccionData);
+                alert("¡Lección creada con éxito!");
                 window.location.href = `admin-modulos.html?curso=${cursoId}`;
-
             } catch (error) {
-                console.error("Error al crear el módulo:", error);
-                alert("Ocurrió un error: " + error.message);
+                console.error("Error al crear la lección:", error);
+                alert("Error al crear la lección. Revisa la consola.");
                 guardarBtn.disabled = false;
-                guardarBtn.textContent = 'Guardar Módulo';
+                guardarBtn.textContent = 'Guardar Lección Completa';
             }
         });
     </script>

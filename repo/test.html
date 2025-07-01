@@ -10,8 +10,8 @@
     <button id="testButton">Probar Función 'testAuth'</button>
 
     <script type="module">
-        import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-functions.js";
 
         const firebaseConfig = {
@@ -23,32 +23,43 @@
             appId: "1:221783859909:web:504d021f4e50a11c8486ac",
             measurementId: "G-0839SL8VP6"
         };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const functions = getFunctions(app, 'us-central1');
 
-        const app       = getApps().length ? getApp() : initializeApp(firebaseConfig);
-        const auth      = getAuth(app);
-        const functions = getFunctions(app);
-
-        
+        // Botón de prueba
         const btn = document.getElementById('testButton');
+        btn.textContent = "Generar Texto con IA";
 
-        onAuthStateChanged(auth, async user => {
-            if (!user) {
-                console.log("Usuario no autenticado");
-                return;
-            }
+        // Iniciamos sesión anónimamente para estar autenticados
+        signInAnonymously(auth).then(() => {
+            console.log("Usuario anónimo autenticado.");
 
-            // 1) Fuerza refresco de token
-            await user.getIdToken(true);
+            btn.onclick = async () => {
+                console.log("Llamando a la Cloud Function 'generateExerciseText'...");
+                btn.disabled = true;
+                btn.textContent = "Generando...";
 
-            // 2) Invoca setAdminClaim
-            const setAdminClaim = httpsCallable(functions, 'setAdminClaim');
-            try {
-                const res = await setAdminClaim({ email: "diad87@gmail.com" });
-                console.log("🎉 setAdminClaim:", res.data.message);
-            } catch (err) {
-                console.error("❌ setAdminClaim error:", err);
-            }
-            });
+                const generateText = httpsCallable(functions, 'generateExerciseText');
+
+                try {
+                    // El prompt que le pedimos a la IA
+                    const result = await generateText({ 
+                        prompt: "Un texto de unas 30 palabras sobre la historia de la informática, enfocado en las teclas E-R-T-U-I-O" 
+                    });
+
+                    console.log("✅ ¡Texto generado con éxito!");
+                    console.log(result.data.exerciseText);
+                    document.body.innerHTML += `<p style="margin-top: 20px; border: 1px solid #ccc; padding: 10px;">${result.data.exerciseText}</p>`;
+
+                } catch (error) {
+                    console.error("❌ Error al llamar a la función:", error);
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = "Generar Texto con IA";
+                }
+            };
+        }).catch(err => console.error("Error en login anónimo", err));
     </script>
 </body>
 </html>

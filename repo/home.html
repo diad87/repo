@@ -148,9 +148,14 @@
     
 
     <script type="module">
+        // REEMPLAZA TU SCRIPT ACTUAL CON ESTE CÓDIGO COMPLETO Y CORREGIDO
+
+        // --- 1. UN ÚNICO BLOQUE DE IMPORTACIONES ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, getDocs, query, orderBy, doc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // --- 2. INICIALIZACIÓN DE FIREBASE ---
         const firebaseConfig = {
             apiKey: "AIzaSyAKnJXo7QLcU7jxkhar_-WeLJNHtxXG9Bk",
             authDomain: "kluppy-duelos.firebaseapp.com",
@@ -160,92 +165,53 @@
             appId: "1:221783859909:web:504d021f4e50a11c8486ac",
             measurementId: "G-0839SL8VP6"
         };
-        
+
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
+        const db = getFirestore(app);
 
-        // --- LÓGICA DEL MENÚ DE USUARIO ---
+        // --- 3. REFERENCIAS AL DOM ---
         const userMenuButton = document.getElementById('user-menu-button');
         const userMenuDropdown = document.getElementById('user-menu-dropdown');
         const logoutButton = document.getElementById('logout-button');
         const userDisplayName = document.getElementById('user-display-name');
         const userEmail = document.getElementById('user-email');
         const userAvatar = document.getElementById('user-avatar');
-        
+        const carouselContainer = document.getElementById('carousel-container');
+        const dotsContainer = document.getElementById('dots-container');
+        const aprenderModulosContainer = document.getElementById('aprender-modulos-container');
+
+        // --- 4. LÓGICA DEL MENÚ DE USUARIO ---
         userMenuButton.addEventListener('click', () => userMenuDropdown.classList.toggle('hidden'));
         document.addEventListener('click', (e) => {
             if (!userMenuButton.contains(e.target) && !userMenuDropdown.contains(e.target)) {
                 userMenuDropdown.classList.add('hidden');
             }
         });
-        logoutButton.addEventListener('click', async () => {
-            try {
-                await signOut(auth);
-            } catch (error) {
-                console.error("Error al cerrar sesión:", error);
-            }
-        });
+        logoutButton.addEventListener('click', () => signOut(auth));
 
-        // --- LÓGICA DE AUTENTICACIÓN ---
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                const name = user.displayName || 'Usuario';
-                userDisplayName.textContent = name;
-                userEmail.textContent = user.email;
-                if (user.photoURL) userAvatar.src = user.photoURL;
-            } else {
-                const currentUrl = window.location.href;
-                const newPath = currentUrl.substring(0, currentUrl.lastIndexOf('/') + 1) + 'index.html';
-                window.location.href = newPath;
-            }
-        });
 
-        // --- LÓGICA DEL CARRUSEL ---
+        // --- 5. LÓGICA DEL CARRUSEL DE IMÁGENES ---
         const slidesData = [
-            {
-                image: "https://cdn.hobbyconsolas.com/sites/navi.axelspringer.es/public/media/image/2017/06/Mejores_pelis_infantiles_Netflix_E.jpg?tf=1920x",
-                title: "Domina la Defensa Siciliana",
-                description: "La respuesta más popular y agresiva contra 1.e4. Aprende sus variantes clave."
-            },
-            {
-                image: "https://cdn.hobbyconsolas.com/sites/navi.axelspringer.es/public/media/image/2017/06/Del_reve%CC%81s.jpg?tf=1920x",
-                title: "El Versátil Ataque Indio de Rey",
-                description: "Un sistema de apertura flexible que puedes usar contra casi cualquier defensa."
-            },
-            {
-                image: "https://cdn.hobbyconsolas.com/sites/navi.axelspringer.es/public/media/image/2017/06/Kung-fu-Panda.jpg?tf=1920x",
-                title: "El Clásico Gambito de Dama",
-                description: "Controla el centro y desarrolla tus piezas con una de las aperturas más antiguas."
-            }
+            { image: "https://cdn.hobbyconsolas.com/sites/navi.axelspringer.es/public/media/image/2017/06/Mejores_pelis_infantiles_Netflix_E.jpg?tf=1920x", title: "Domina la Defensa Siciliana", description: "La respuesta más popular y agresiva contra 1.e4." },
+            { image: "https://cdn.hobbyconsolas.com/sites/navi.axelspringer.es/public/media/image/2017/06/Del_reve%CC%81s.jpg?tf=1920x", title: "El Versátil Ataque Indio de Rey", description: "Un sistema de apertura flexible que puedes usar contra casi cualquier defensa." },
+            { image: "https://cdn.hobbyconsolas.com/sites/navi.axelspringer.es/public/media/image/2017/06/Kung-fu-Panda.jpg?tf=1920x", title: "El Clásico Gambito de Dama", description: "Controla el centro con una de las aperturas más antiguas." }
         ];
-
-        const carouselContainer = document.getElementById('carousel-container');
-        const dotsContainer = document.getElementById('dots-container');
         let currentSlideIndex = 0;
         let intervalId;
 
         function createSlides() {
+            // ... (La lógica interna de createSlides, showSlide, nextSlide, etc. no necesita cambios)
             slidesData.forEach((slide, index) => {
                 const slideElement = document.createElement('div');
                 slideElement.className = 'carousel-slide absolute top-0 left-0 w-full h-full bg-cover bg-center';
                 slideElement.style.backgroundImage = `url('${slide.image}')`;
                 slideElement.style.opacity = index === 0 ? '1' : '0';
-
                 const contentOverlay = document.createElement('div');
                 contentOverlay.className = 'absolute inset-0 flex items-end p-8 bg-gradient-to-t from-gray-900/80 via-gray-900/40 to-transparent';
-                
-                contentOverlay.innerHTML = `
-                    <div class="max-w-xl">
-                        <h2 class="text-4xl font-bold mb-4 font-coolvetica-heavy">${slide.title}</h2>
-                        <p class="max-w-xl text-gray-200 mb-6">${slide.description}</p>
-                        <button class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded">
-                            Empezar a Aprender
-                        </button>
-                    </div>
-                `;
+                contentOverlay.innerHTML = `<div class="max-w-xl"><h2 class="text-4xl font-bold mb-4 font-coolvetica-heavy">${slide.title}</h2><p class="max-w-xl text-gray-200 mb-6">${slide.description}</p><button class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-6 rounded">Empezar a Aprender</button></div>`;
                 slideElement.appendChild(contentOverlay);
                 carouselContainer.appendChild(slideElement);
-
                 const dot = document.createElement('button');
                 dot.className = 'w-3 h-3 rounded-full transition-colors';
                 dot.style.backgroundColor = index === 0 ? 'white' : 'rgba(255, 255, 255, 0.5)';
@@ -253,78 +219,49 @@
                 dotsContainer.appendChild(dot);
             });
         }
-
         function showSlide(index) {
             const slides = carouselContainer.querySelectorAll('.carousel-slide');
             const dots = dotsContainer.querySelectorAll('button');
-
-            slides.forEach((slide, i) => {
-                slide.style.opacity = i === index ? '1' : '0';
-            });
-            dots.forEach((dot, i) => {
-                dot.style.backgroundColor = i === index ? 'white' : 'rgba(255, 255, 255, 0.5)';
-            });
+            slides.forEach((slide, i) => slide.style.opacity = i === index ? '1' : '0');
+            dots.forEach((dot, i) => dot.style.backgroundColor = i === index ? 'white' : 'rgba(255, 255, 255, 0.5)');
             currentSlideIndex = index;
             resetInterval();
         }
-
-        function nextSlide() {
-            const nextIndex = (currentSlideIndex + 1) % slidesData.length;
-            showSlide(nextIndex);
-        }
-
-        function prevSlide() {
-            const prevIndex = (currentSlideIndex - 1 + slidesData.length) % slidesData.length;
-            showSlide(prevIndex);
-        }
-        
+        function nextSlide() { showSlide((currentSlideIndex + 1) % slidesData.length); }
+        function prevSlide() { showSlide((currentSlideIndex - 1 + slidesData.length) % slidesData.length); }
         function resetInterval() {
             clearInterval(intervalId);
             intervalId = setInterval(nextSlide, 5000);
         }
-
         document.getElementById('next-btn').addEventListener('click', nextSlide);
         document.getElementById('prev-btn').addEventListener('click', prevSlide);
-        
-        // EN repo/home.html, dentro del <script>
 
-        import { getFirestore, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-        const db = getFirestore(app);
-        
 
+        // --- 6. LÓGICA DE CARGA DE MÓDULOS ---
         async function cargarModulosDeAprender() {
-            const container = document.getElementById('aprender-modulos-container');
-            container.innerHTML = '<p class="text-gray-400">Cargando lecciones...</p>';
-
+            aprenderModulosContainer.innerHTML = '<p class="text-gray-400">Cargando lecciones...</p>';
             try {
                 const modulosRef = collection(db, "cursos/aprender/modulos");
-                const q = query(modulosRef, orderBy("orden")); // Ordenamos por el campo 'orden'
+                const q = query(modulosRef, orderBy("orden"));
                 const querySnapshot = await getDocs(q);
                 
-                container.innerHTML = ''; // Limpiamos el 'Cargando...'
+                aprenderModulosContainer.innerHTML = '';
                 
                 if (querySnapshot.empty) {
-                    container.innerHTML = '<p class="text-gray-400">Aún no hay módulos de aprendizaje. ¡Créalos en el panel de admin!</p>';
+                    aprenderModulosContainer.innerHTML = '<p class="text-gray-400">Aún no hay módulos de aprendizaje.</p>';
                     return;
                 }
 
                 querySnapshot.forEach(doc => {
                     const modulo = doc.data();
                     const moduloId = doc.id;
-
                     const card = document.createElement('div');
                     card.className = 'flex-shrink-0 w-64 group';
                     
-                    // --- LÓGICA ACTUALIZADA PARA LA IMAGEN ---
-                    // 1. Comprobamos si el módulo tiene una URL de imagen guardada.
-                    // 2. Si la tiene, la usamos.
-                    // 3. Si no, usamos el color guardado para generar una imagen de placeholder.
                     const imgSrc = modulo.imageUrl 
                         ? modulo.imageUrl 
-                        : `https://placehold.co/400x225/${(modulo.color || '#f87171').substring(1)}/ffffff?text=${encodeURIComponent(modulo.nombre)}`;
-
-                    // El enlace ahora apunta a ejercicio.html con los parámetros correctos
-                    // y la etiqueta <img> usa la fuente de imagen dinámica (imgSrc).
+                        : `https://placehold.co/400x225/${(modulo.color || '374151').substring(1)}/ffffff?text=${encodeURIComponent(modulo.nombre)}`;
+                    
                     card.innerHTML = `
                         <a href="ejercicio.html?curso=aprender&modulo=${moduloId}" class="block">
                             <img src="${imgSrc}" class="w-full h-36 object-cover rounded-lg mb-2 transform group-hover:scale-105 transition-transform duration-300" alt="${modulo.nombre}">
@@ -332,37 +269,35 @@
                             <p class="text-sm text-gray-400">${modulo.descripcion || ''}</p>
                         </a>
                     `;
-                    container.appendChild(card);
+                    aprenderModulosContainer.appendChild(card);
                 });
 
             } catch (error) {
                 console.error("Error al cargar los módulos de aprendizaje:", error);
-                container.innerHTML = '<p class="text-red-500">No se pudieron cargar las lecciones.</p>';
+                aprenderModulosContainer.innerHTML = '<p class="text-red-500">No se pudieron cargar las lecciones.</p>';
             }
         }
 
-        // --- LÓGICA DE AUTENTICACIÓN ---
-        // Modifica tu 'onAuthStateChanged' existente para que quede así:
+        // --- 7. PUNTO DE ENTRADA PRINCIPAL ---
         onAuthStateChanged(auth, (user) => {
             if (user) {
-                // --- tu código existente para mostrar el usuario ---
-                const name = user.displayName || 'Usuario';
-                userDisplayName.textContent = name;
+                // Actualizamos la UI del usuario
+                userDisplayName.textContent = user.displayName || 'Usuario';
                 userEmail.textContent = user.email;
                 if (user.photoURL) userAvatar.src = user.photoURL;
-                // -------------------------------------------------
                 
-                // Llamamos a la nueva función cuando el usuario está logueado
+                // Cargamos los módulos y el carrusel una vez sabemos que el usuario está logueado
+                createSlides();
+                resetInterval();
                 cargarModulosDeAprender(); 
 
             } else {
+                // Si no hay usuario, redirigimos al login
                 const currentUrl = window.location.href;
                 const newPath = currentUrl.substring(0, currentUrl.lastIndexOf('/') + 1) + 'index.html';
                 window.location.href = newPath;
             }
         });
-        createSlides();
-        resetInterval();
     </script>
 </body>
 </html>
