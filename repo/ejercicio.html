@@ -38,6 +38,15 @@
         </header>
 
     <main id="test-mecanografia" class="container mx-auto px-4 lg:px-8 py-12">
+        <div id="module-progress-container" class="w-full flex justify-center items-center h-12 mb-4 space-x-3">
+            <div id="countdown-timer" class="relative w-10 h-10 hidden">
+                <svg class="w-full h-full" viewBox="0 0 36 36">
+                    <path class="stroke-current text-gray-700" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke-width="3"></path>
+                    <path id="countdown-ring" class="stroke-current text-cyan-400" stroke-dasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke-width="3" stroke-linecap="round" transform="rotate(-90 18 18)" style="transition: stroke-dasharray 1s linear;"></path>
+                </svg>
+                <span id="countdown-text" class="absolute inset-0 flex items-center justify-center text-xs font-bold"></span>
+            </div>
+        </div>
         <div id="sample-container">
             <div id="loading-spinner" class="hidden"></div>
             

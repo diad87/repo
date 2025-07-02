@@ -85,6 +85,11 @@
                     </select>
                 </div>
             </div>
+
+            <div class="mt-4">
+                <label>Ejercicios Fijos Iniciales (opcional, uno por línea)</label>
+                <textarea class="fase-ejercicios-fijos" rows="3" placeholder="jf jf jf jf... (primera línea)&#10;fj fj fj fj... (segunda línea)"></textarea>
+            </div>
             
             <div class="criterios-container mt-4 space-y-4"></div>
 
@@ -96,6 +101,10 @@
                     <div>
                         <label>Duración del Bloque (s)</label>
                         <input type="number" class="fase-duracion" value="45">
+                    </div>
+                    <div>
+                        <label>Mínimo de Caracteres</label>
+                        <input type="number" class="fase-min-caracteres" value="100" title="Caracteres mínimos a escribir para que el intento sea válido.">
                     </div>
 
                     <div class="md:col-span-2"> 
@@ -245,9 +254,13 @@
                         id: `${tipoFase}_${index}`,
                         nombre: card.querySelector('.fase-nombre').value,
                         tipoFase: tipoFase,
+                        ejerciciosFijos: (card.querySelector('.fase-ejercicios-fijos').value || '')
+                                    .split('\n') // Divide el texto por cada salto de línea
+                                    .filter(Boolean), // Elimina líneas vacías si las hay
                         criterioPaseFase: {},
                         configEjercicio: {
                             duracionBloque: Number(card.querySelector('.fase-duracion').value),
+                            minCaracteresRequeridos: Number(card.querySelector('.fase-min-caracteres').value),
                             prompt: card.querySelector('.fase-prompt').value, // <--- Esta línea es crucial
                             characterSet: Array.from(card.querySelectorAll('.char-checkbox:checked')).map(cb => cb.dataset.char),
                         }
