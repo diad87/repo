@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ejercicio de Mecanografía - Kluppy v1</title>
+    <title>Ejercicio de Mecanografía - Kluppy v2</title>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <link rel="stylesheet" href="css/ejercicio.css">
@@ -12,7 +12,7 @@
 
     <header class="bg-gray-800/80 backdrop-blur-sm sticky top-0 z-50">
         <div class="container mx-auto flex justify-between items-center p-4">
-            <a href="home.html" class="text-4xl font-bold tracking-wider text-white">Kluppy</a>
+            <a href="home.html" class="text-4xl font-bold tracking-wider text-white">kluppy</a>
             <div class="relative">
                 <button id="user-menu-button" class="flex items-center space-x-2">
                     <img id="user-avatar" class="w-8 h-8 rounded-full object-cover" src="https://placehold.co/40x40/7c3aed/ffffff?text=K" alt="Avatar de usuario">
@@ -39,13 +39,6 @@
 
     <main id="test-mecanografia" class="container mx-auto px-4 lg:px-8 py-12">
         <div id="module-progress-container" class="w-full flex justify-center items-center h-12 mb-4 space-x-3">
-            <div id="countdown-timer" class="relative w-10 h-10 hidden">
-                <svg class="w-full h-full" viewBox="0 0 36 36">
-                    <path class="stroke-current text-gray-700" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke-width="3"></path>
-                    <path id="countdown-ring" class="stroke-current text-cyan-400" stroke-dasharray="100, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke-width="3" stroke-linecap="round" transform="rotate(-90 18 18)" style="transition: stroke-dasharray 1s linear;"></path>
-                </svg>
-                <span id="countdown-text" class="absolute inset-0 flex items-center justify-center text-xs font-bold"></span>
-            </div>
         </div>
         <div id="sample-container">
             <div id="loading-spinner" class="hidden"></div>
@@ -168,6 +161,6 @@
         </div>
     </div>
 
-    <script type="module"src="js/ejercicio.js"></script>
+    <script type="module" src="js/ejercicio.js"></script>
 </body>
 </html>

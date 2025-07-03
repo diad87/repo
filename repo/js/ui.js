@@ -240,8 +240,6 @@ function getFingerForKey(char) {
  * Funciona de forma diferente para ejercicios por tiempo o por longitud.
  */
 export function actualizarBarraDeProgreso() {
-    if (!estadoEjercicio.timerIniciado) return;
-
     const typedLength = entradaUsuario.value.length;
     let porcentaje = 0;
     let textoProgreso = `${typedLength} caracteres`;
@@ -249,10 +247,16 @@ export function actualizarBarraDeProgreso() {
     const duracion = estadoEjercicio.criterios?.duracionBloque;
 
     if (duracion > 0) {
+        // --- Si el ejercicio es por tiempo ---
+        // La barra representa el TIEMPO TRANSCURRIDO.
+        const tiempoTranscurrido = estadoEjercicio.timerIniciado ? (Date.now() - estadoEjercicio.tiempoInicio) / 1000 : 0;
+        porcentaje = Math.min((tiempoTranscurrido / duracion) * 100, 100);
+
+        // Y el texto muestra el progreso de caracteres.
         const minCaracteres = estadoEjercicio.criterios?.minCaracteresRequeridos || 100;
-        porcentaje = Math.min((typedLength / minCaracteres) * 100, 100);
         textoProgreso = `${typedLength} / ${minCaracteres} chars`;
     } else { 
+        // --- Si no tiene duración, funciona como antes ---
         const totalLength = estadoEjercicio.textoMuestraCompleto?.length || 0;
         if (totalLength > 0) {
             porcentaje = Math.min((typedLength / totalLength) * 100, 100);
@@ -260,14 +264,10 @@ export function actualizarBarraDeProgreso() {
         }
     }
 
-    // Asegúrate de que progressBar y progressText se importan desde dom.js al principio de este archivo
     if (progressBar) progressBar.style.width = `${porcentaje}%`;
     if (progressText) progressText.textContent = textoProgreso;
 }
 
-/**
- * Actualiza la UI del temporizador de anillo (countdown).
- */
 export function actualizarTimerUI() {
     // Esta función depende de 'estadoEjercicio' y de los elementos del DOM del timer.
     // Asegúrate de que están importados al principio de este archivo (ui.js).
@@ -276,14 +276,42 @@ export function actualizarTimerUI() {
         return;
     }
 
+    // Hacemos visible el contenedor del timer si no lo está ya
+    if(countdownTimer.classList.contains('hidden')) {
+        countdownTimer.classList.remove('hidden');
+    }
+
     const duracionTotal = estadoEjercicio.criterios?.duracionBloque;
     if (!duracionTotal) return;
 
     const tiempoTranscurrido = (Date.now() - estadoEjercicio.tiempoInicio) / 1000;
     const tiempoRestante = Math.max(0, duracionTotal - tiempoTranscurrido);
 
-    if (countdownText) countdownText.textContent = Math.round(tiempoRestante);
+    if(countdownText) countdownText.textContent = Math.round(tiempoRestante);
 
     const porcentajeRestante = (tiempoRestante / duracionTotal) * 100;
-    if (countdownRing) countdownRing.style.strokeDasharray = `${porcentajeRestante}, 100`;
+    if(countdownRing) countdownRing.style.strokeDasharray = `${porcentajeRestante}, 100`;
 }
+
+// /**
+//  * Actualiza la UI del temporizador de anillo (countdown).
+//  */
+// export function actualizarTimerUI() {
+//     // Esta función depende de 'estadoEjercicio' y de los elementos del DOM del timer.
+//     // Asegúrate de que están importados al principio de este archivo (ui.js).
+
+//     if (!estadoEjercicio.timerIniciado || !countdownTimer) {
+//         return;
+//     }
+
+//     const duracionTotal = estadoEjercicio.criterios?.duracionBloque;
+//     if (!duracionTotal) return;
+
+//     const tiempoTranscurrido = (Date.now() - estadoEjercicio.tiempoInicio) / 1000;
+//     const tiempoRestante = Math.max(0, duracionTotal - tiempoTranscurrido);
+
+//     if (countdownText) countdownText.textContent = Math.round(tiempoRestante);
+
+//     const porcentajeRestante = (tiempoRestante / duracionTotal) * 100;
+//     if (countdownRing) countdownRing.style.strokeDasharray = `${porcentajeRestante}, 100`;
+// }

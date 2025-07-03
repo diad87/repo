@@ -29,7 +29,7 @@ import {
     updateHighlighting,
     updateSampleTextPosition,
     actualizarBarraDeProgreso,
-    actualizarTimerUI
+    // actualizarTimerUI
 } from './ui.js';
 
 // Módulo de Estadísticas
@@ -83,7 +83,7 @@ import { makeDraggable } from './utils.js';
 
 function finalizarEjercicio() {
     if (estadoEjercicio.idTemporizador) clearTimeout(estadoEjercicio.idTemporizador);
-    if (estadoEjercicio.idTimerUI) clearInterval(estadoEjercicio.idTimerUI);
+    // if (estadoEjercicio.idTimerUI) clearInterval(estadoEjercicio.idTimerUI);
     if (!estadoEjercicio.timerIniciado) {
         avanzarLeccion(); // Avanza al siguiente intento si no se empezó
         return;
@@ -143,12 +143,27 @@ entradaUsuario.addEventListener('input', (event) => {
     }
 
     if (!estadoEjercicio.timerIniciado && entradaUsuario.value.length > 0) {
-        setEstadoEjercicio({ timerIniciado: true, tiempoInicio: Date.now() });
-        const duracion = estadoEjercicio.criterios.duracionBloque;
-        if (duracion > 0) {
-            setEstadoEjercicio({ idTemporizador: setTimeout(() => finalizarEjercicio(), duracion * 1000) });
-        }
+    // Marcamos el inicio del intento y guardamos la hora
+    setEstadoEjercicio({ timerIniciado: true, tiempoInicio: Date.now() });
+
+    // Limpiamos cualquier intervalo que pudiera quedar de un estado anterior
+    if (liveStatsIntervalId) clearInterval(liveStatsIntervalId);
+
+    // Iniciamos el único intervalo que actualiza la UI cada 250ms
+    liveStatsIntervalId = setInterval(() => {
+        actualizarEstadisticasEnVivo(); // Actualiza las stats en vivo
+        actualizarBarraDeProgreso();  // Actualiza la barra de progreso (sea por tiempo o por longitud)
+    }, 250);
+
+    // Iniciamos el temporizador principal que finaliza el bloque
+    const duracion = estadoEjercicio.criterios.duracionBloque; 
+    if (duracion > 0) {
+        console.log(`⏰ Temporizador de finalización iniciado: ${duracion} segundos.`);
+        setEstadoEjercicio({ 
+            idTemporizador: setTimeout(() => finalizarEjercicio(), duracion * 1000) 
+        });
     }
+}
 
     estadoEjercicio.tiemposDePulsacion.push(Date.now());
     const posActual = entradaUsuario.value.length - 1;
