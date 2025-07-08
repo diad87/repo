@@ -82,6 +82,7 @@ import { makeDraggable } from './utils.js';
 // --- 2. LÓGICA DE NAVEGACIÓN Y FINALIZACIÓN ---
 
 function finalizarEjercicio() {
+    if (entradaUsuario.disabled) return;
     if (estadoEjercicio.idTemporizador) clearTimeout(estadoEjercicio.idTemporizador);
     // if (estadoEjercicio.idTimerUI) clearInterval(estadoEjercicio.idTimerUI);
     if (!estadoEjercicio.timerIniciado) {
@@ -101,6 +102,23 @@ function finalizarEjercicio() {
             alert(`¡FASE SUPERADA: ${faseActual.nombre}! Prepárate para la siguiente.`);
         }, 500);
     }
+}
+
+function chequearFinBloque() {
+    const duracion = estadoEjercicio.criterios.duracionBloque || 0;
+    const minChars = estadoEjercicio.criterios.minCaracteresRequeridos || 0;
+
+    const tiempoTranscurrido = estadoEjercicio.tiempoInicio ? (Date.now() - estadoEjercicio.tiempoInicio) / 1000 : 0;
+    const typedLength = entradaUsuario.value.length;
+
+    const tiempoOk = duracion ? tiempoTranscurrido >= duracion : true;
+    const charsOk = minChars ? typedLength >= minChars : true;
+
+    if (tiempoOk && charsOk) {
+        finalizarEjercicio();
+        return true;
+    }
+    return false;
 }
 
 function avanzarLeccion() {
@@ -156,11 +174,11 @@ entradaUsuario.addEventListener('input', (event) => {
     }, 250);
 
     // Iniciamos el temporizador principal que finaliza el bloque
-    const duracion = estadoEjercicio.criterios.duracionBloque; 
+    const duracion = estadoEjercicio.criterios.duracionBloque;
     if (duracion > 0) {
         console.log(`⏰ Temporizador de finalización iniciado: ${duracion} segundos.`);
-        setEstadoEjercicio({ 
-            idTemporizador: setTimeout(() => finalizarEjercicio(), duracion * 1000) 
+        setEstadoEjercicio({
+            idTemporizador: setTimeout(() => chequearFinBloque(), duracion * 1000)
         });
     }
 }
@@ -204,6 +222,8 @@ entradaUsuario.addEventListener('input', (event) => {
     if (estadoEjercicio.tipo === 'maestria_ventana_movil') {
         verificarProgresoEnVentana();
     }
+
+    chequearFinBloque();
 
     if (entradaUsuario.value.length === textLength && !estadoEjercicio.criterios.duracionBloque) {
         finalizarEjercicio();

@@ -2,7 +2,7 @@
 // Módulo de acceso a datos y generación de ejercicios (Firebase y lógica procedural)
 
 import { auth, db, functions } from './firebase.js';
-import { renderizarTextoEnUI, renderModuleProgress } from './ui.js';
+import { renderizarTextoEnUI } from './ui.js';
 import { estadoLeccion, estadoEjercicio, setEstadoLeccion, setEstadoEjercicio, resetearEstadoEjercicio } from './state.js';
 import { loadingSpinner, textoMuestraElement } from './dom.js';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
@@ -93,7 +93,6 @@ export async function prepararFaseActual() {
         return;
     }
 
-    renderModuleProgress(estadoLeccion.datos.fases.length, estadoLeccion.faseActualIndex);
     
     // Usamos 'fase' para establecer el tipo y los criterios
     setEstadoEjercicio({
@@ -112,9 +111,19 @@ export async function prepararFaseActual() {
     try {
         // Usamos 'fase' para obtener la configuración
         const config = fase.configEjercicio;
+        const progresoFase = estadoLeccion.progresoPorFase[fase.id] || {};
+        const fixedIndex = progresoFase.ejercicioFijoIndex || 0;
+        const resultadosPrevios = progresoFase.resultadosFijos || [];
         let textoGenerado;
 
-        if (config.tipoGenerador === 'patron_simple' && config.patron) {
+        if (fixedIndex < (fase.ejerciciosFijos || []).length) {
+            textoGenerado = fase.ejerciciosFijos[fixedIndex];
+            estadoLeccion.progresoPorFase[fase.id] = {
+                ...progresoFase,
+                ejercicioFijoIndex: fixedIndex + 1,
+                resultadosFijos: resultadosPrevios
+            };
+        } else if (config.tipoGenerador === 'patron_simple' && config.patron) {
             console.log(`Generando texto localmente con el patrón: "${config.patron}"`);
             textoGenerado = generarTextoDePatron(config.patron, config.longitudGenerada || 200);
         } else {
@@ -123,10 +132,10 @@ export async function prepararFaseActual() {
             
             console.log("Solicitando texto a la IA con el prompt:", promptParaIA);
             const generateText = httpsCallable(functions, 'generateExerciseText');
-            const result = await generateText({ config: configParaEnviar });
+            const result = await generateText({ config: configParaEnviar, resultadosPrevios });
             textoGenerado = result.data.exerciseText.split('');
         }
-        setEstadoEjercicio({ textoMuestraCompleto: textoGenerado });
+        setEstadoEjercicio({ textoMuestraCompleto: Array.isArray(textoGenerado) ? textoGenerado : textoGenerado.split('') });
 
     } catch (error) {
         console.error("Error al generar texto con IA:", error);

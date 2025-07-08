@@ -368,6 +368,8 @@ exports.generateExerciseText = onCall({region: "us-central1"}, async (request) =
 
   // 2. Validación de los datos recibidos
   const config = request.data.config;
+  const resultadosPrevios = request.data.resultadosPrevios || [];
+
   if (!config || !config.prompt) {
     throw new HttpsError("invalid-argument", "Falta la configuración o el prompt para la IA.");
   }
@@ -381,6 +383,8 @@ exports.generateExerciseText = onCall({region: "us-central1"}, async (request) =
   });
 
   // 4. Construcción del prompt detallado para la IA
+  const historial = resultadosPrevios.map(r => `PPM ${r.ppm} con ${r.precision}%`).join('; ');
+
   const fullPrompt = `
       Eres un experto en crear ejercicios de mecanografía para hispanohablantes.
       Tu única tarea es generar un texto en español para practicar.
@@ -391,6 +395,7 @@ exports.generateExerciseText = onCall({region: "us-central1"}, async (request) =
       3. El texto debe ser un único párrafo continuo, sin saltos de línea.
       4. No incluyas comillas ni al principio ni al final del texto generado.
 
+      ${historial ? `Resultados previos: ${historial}.` : ''}
       INSTRUCCIÓN GUÍA (úsala como inspiración para el tema, pero siempre respetando las reglas anteriores): "${prompt}"
   `;
 

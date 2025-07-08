@@ -104,12 +104,18 @@ export async function evaluarPaseDeFase(fase, resultado) {
     estadoLeccion.progresoPorFase[idFase] = {
       intentosTotales: 0,
       historialResultados: [],
-      precisiones: []
+      precisiones: [],
+      resultadosFijos: [],
+      ejercicioFijoIndex: 0
     };
   }
   const progreso = estadoLeccion.progresoPorFase[idFase];
   progreso.intentosTotales++;
-
+  if (fase.ejerciciosFijos && progreso.resultadosFijos) {
+    if (progreso.resultadosFijos.length < fase.ejerciciosFijos.length) {
+      progreso.resultadosFijos.push({ ppm: resultado.ppm, precision: resultado.precision });
+    }
+  }
   let faseSuperada = false;
   switch (fase.tipoFase) {
     case 'bloques_fijos':
