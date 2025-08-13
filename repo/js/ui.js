@@ -52,13 +52,31 @@ backgroundMusic.loop = true;
 backgroundMusic.volume = 0.2;
 
 /**
+ * Reproduce brevemente cada audio en silencio para permitir su uso posterior.
+ */
+export function primeAudio() {
+  [audioTecleo, audioError, audioBorrado, audioEstrella, backgroundMusic].forEach(audio => {
+    const originalVolume = audio.volume;
+    audio.volume = 0;
+    audio.play().catch(e => {
+      if (e.name !== 'AbortError') console.error('Error al reproducir sonido:', e);
+    });
+    audio.pause();
+    audio.currentTime = 0;
+    audio.volume = originalVolume;
+  });
+}
+
+/**
  * Reproduce un sonido desde el inicio.
  * @param {HTMLAudioElement} audio
  */
 export function playSound(audio) {
+    console.log('playSound', audio.src, 'readyState', audio.readyState);
   audio.currentTime = 0;
   audio.play().catch(e => {
     if (e.name !== 'AbortError') console.error('Error al reproducir sonido:', e);
+        console.error(e);
   });
 }
 
@@ -155,7 +173,7 @@ export function updateKeyboardAndHandHighlight() {
   document.getElementById('keyboard-container')?.classList.add('foco-activo');
   let nextChar = text[idx];
   const diac = diacriticMap[nextChar];
-  const isUppercase = nextChar && nextChar === nextChar.toUpperCase() && !diac;
+  const isUppercase = /^[A-ZÁÉÍÓÚÜÑ]$/.test(nextChar);
   let selector;
   if (diac) selector = `.key[data-key="${diac.base.toUpperCase()}"]`;
   else if (nextChar) {
@@ -210,6 +228,7 @@ export function toggleStatsPanel() {
  */
 export function applyTheme(theme) {
   document.body.classList.toggle('dark-theme', theme === 'dark');
+  themeToggle.dataset.theme = theme;
 }
 
 /**
@@ -217,8 +236,7 @@ export function applyTheme(theme) {
  */
 export function initializeTheme() {
   const saved = localStorage.getItem('theme');
-  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-  const theme = saved || (prefersDark ? 'dark' : 'light');
+  const theme = saved || 'dark';
   applyTheme(theme);
   themeToggle.addEventListener('click', () => {
     const next = themeToggle.dataset.theme === 'dark' ? 'light' : 'dark';

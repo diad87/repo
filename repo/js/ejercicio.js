@@ -160,6 +160,9 @@ entradaUsuario.addEventListener('input', (event) => {
         console.log(`❄️ Cooldown activo: ${estadoEjercicio.pulsacionesEnCooldown} restantes.`);
     }
 
+    updateHighlighting();
+    updateSampleTextPosition();
+
     if (!estadoEjercicio.timerIniciado && entradaUsuario.value.length > 0) {
     // Marcamos el inicio del intento y guardamos la hora
     setEstadoEjercicio({ timerIniciado: true, tiempoInicio: Date.now() });
@@ -205,8 +208,6 @@ entradaUsuario.addEventListener('input', (event) => {
     }
 
     actualizarBarraDeProgreso();
-    updateHighlighting();
-    updateSampleTextPosition();
 
     const textLength = estadoEjercicio.textoMuestraCompleto.length;
     if (estadoEjercicio.criterios.duracionBloque > 0 && textLength > 0 && textLength - entradaUsuario.value.length < 50) {
@@ -241,6 +242,8 @@ entradaUsuario.addEventListener("keydown", (event) => {
             }
             setEstadoEjercicio({ correcciones: estadoEjercicio.correcciones + 1 });
         }
+    } else {
+        updateHighlighting();
     }
 });
 
