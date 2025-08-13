@@ -53,3 +53,5 @@ export const moduleProgressContainer    = document.getElementById('module-progre
  export const countdownTimer           = document.getElementById('countdown-timer');
  export const countdownRing              = document.getElementById('countdown-ring');
  export const countdownText              = document.getElementById('countdown-text');
+
+ export const faseProgresoContainer = document.getElementById('fase-progreso-container');

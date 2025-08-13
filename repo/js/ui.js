@@ -15,7 +15,8 @@ import {
   countdownText,
   themeToggle,
   countdownTimer,
-  musicToggleButton
+  musicToggleButton,
+  faseProgresoContainer
 } from './dom.js';
 import { estadoEjercicio } from './state.js';
 
@@ -333,3 +334,39 @@ export function actualizarTimerUI() {
 //     const porcentajeRestante = (tiempoRestante / duracionTotal) * 100;
 //     if (countdownRing) countdownRing.style.strokeDasharray = `${porcentajeRestante}, 100`;
 // }
+
+/**
+ * Muestra en la UI el progreso actual del usuario dentro de una fase.
+ */
+export function renderizarProgresoDeFase() {
+    if (!faseProgresoContainer || !estadoLeccion.datos) return;
+
+    const faseActual = estadoLeccion.datos.fases[estadoLeccion.faseActualIndex];
+    if (!faseActual) {
+        faseProgresoContainer.innerHTML = '';
+        return;
+    }
+
+    const progreso = estadoLeccion.progresoPorFase[faseActual.id] || { intentosTotales: 0 };
+    const criterios = faseActual.criterioPaseFase;
+    let html = '';
+
+    switch (faseActual.tipoFase) {
+        case 'bloques_fijos':
+            const bloquesCompletados = progreso.intentosTotales || 0;
+            html = `<span>Bloques Completados: <strong>${bloquesCompletados} / ${criterios.bloquesRequeridos}</strong></span>`;
+            break;
+
+        case 'maestria_ventana_movil':
+            const historial = progreso.historialResultados || [];
+            const exitos = historial.filter(r => r === true).length;
+            html = `<span>Maestría: <strong>${exitos} de ${criterios.exitosRequeridos}</strong> (en los últimos ${criterios.ventanaDeIntentos} intentos)</span>`;
+            break;
+
+        case 'test_unico':
+            html = `<span>Test Final de Automatización ★★★</span>`;
+            break;
+    }
+
+    faseProgresoContainer.innerHTML = html;
+}

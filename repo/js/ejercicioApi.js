@@ -2,7 +2,7 @@
 // Módulo de acceso a datos y generación de ejercicios (Firebase y lógica procedural)
 
 import { auth, db, functions } from './firebase.js';
-import { renderizarTextoEnUI } from './ui.js';
+import { renderizarTextoEnUI, renderizarProgresoDeFase, renderModuleProgress } from './ui.js';
 import { estadoLeccion, estadoEjercicio, setEstadoLeccion, setEstadoEjercicio, resetearEstadoEjercicio } from './state.js';
 import { loadingSpinner, textoMuestraElement } from './dom.js';
 import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
